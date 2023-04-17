@@ -8,7 +8,7 @@ En el curso vamos a utilizar MongoDB dockerizado.
 
 - Usaremos Docker.
 - Dentro de Docker, vamos a crear un contenedor con MongoDB.
-- Instalaremos una base de datos de ejemplo en el contenedor de MongoDB. En este caso, vamos a utilizar la base de datos de ejemplo de MongoDB, que se llama "sample_mflix".
+- Instalaremos una base de datos de ejemplo en el contenedor de MongoDB. En este caso, vamos a utilizar la base de datos de ejemplo de MongoDB, que se llama "sample_mflix", donde podemos encontrar una base de datos de películas con información de actores, directores, comentarios, etc.
 
 De esta forma no tenemos que instalar MongoDB en nuestro equipo, y además, vamos a tener una base de datos de ejemplo para poder trabajar sobre ella.
 
@@ -18,8 +18,7 @@ Para seguir el curso, necesitamos tener instalado:
 
 - Docker
 - MongoDB Compass
-
-// TODO: ¿hará falta algo más cómo el visual studio code?
+- Visual Studio Code
 
 # Instalación mongo dockerizado
 
@@ -143,9 +142,7 @@ parametro _-f_ es para forzar su eliminación (así si hay una instancia corrien
 
 # Base de datos de ejemplo
 
-En el paso anterior vimos como instanciar un contenedor de **Docker** basado en una imagen que tuviera un MongoDB, y después nos pusimos por línea de comandos a
-crear una mini base de datos. Esto no esta mal, peeerooo en el mundo real, trabajamos con bases de datos
-que contienen un montón de información, lo normal es que restauremos un backup y nos pongamos a trabajar usando información cuanto menos parecida a la real.
+En el paso anterior vimos como instanciar un contenedor de **Docker** basado en una imagen que tuviera un MongoDB, y después nos pusimos por línea de comandos a crear una mini base de datos. Esto no esta mal, peeerooo en el mundo real, trabajamos con bases de datos que contienen un montón de información, lo normal es que restauremos un backup y nos pongamos a trabajar usando información cuanto menos parecida a la real.
 
 _¿Cómo podemos hacer ésto con Docker?_
 
@@ -160,29 +157,20 @@ docker ps
 
 En caso de que no, puedes seguir los primeros pasos del ejemplo anterior.
 
-En nuestra carpeta de trabajo tenemos un backup de una base de datos de ejemplo que te provee mongoDB,
-puedes obtenerla en este [enlace](https://docs.atlas.mongodb.com/sample-data/available-sample-datasets/).
+Vamos a ir a este [repositorio](https://github.com/Lemoncode/m-flix-backup) y clonamos el repositorio con Visual Studio Code.
 
-// TODO: Falta el enlace que creo que estaba en drive.
-
-Aquí si estuviéramos en windows podríamos poner _dir_ para ver los archivos, y en linux o MacOs
-tecleamos _ls_
-
-```bash
-ls
-```
-
-Aquí podemos ver una carpeta de backup, si entramos podemos ver el backup de varias colecciones
+Aquí podemos ver una carpeta _m-flix, si entramos podemos ver el backup de varias colecciones
 
 ```
-cd backup
+cd m-flix
+
 ```
 
 ```
 ls
 ```
 
-volvemos al nivel superior
+Volvemos al nivel superior.
 
 ```
 cd ..
@@ -197,34 +185,22 @@ Aquí lo que hacemos es decirle que vamos a copiar el contenido de lo que hay en
 > establecido al crearlo _my-mongo-db_ o reemplazarlo por el identificador de contenedor de la instancia de mongo que estés ejecutando.
 
 ```bash
-docker cp backup my-mongo-db:/opt/app
+docker cp m-flix my-mongo-db:/opt/app
 ```
+
+Y restauramos el backup
+
+```bash
+docker exec my-mongo-db mongorestore --db mymovies opt/app
+```
+
+Con _docker exec_ le estamos diciendo que ejecute el comando _mongorestore_ en el contenedor _my-mongo-db_, que restaure la base de datos que está en la ruta _opt/app_ y la llame _mymovies_.
 
 Ahora podemos entrar en nuestro contenedor:
 
 ```
 docker exec -it my-mongo-db sh
 ```
-
-Si queréis nos podemos ir a la ruta donde esta el backup
-
-```
-cd opt
-```
-
-```
-cd app
-```
-
-Y restauramos el backup
-
-```bash
-mongorestore --db mymovies .
-```
-
-En este caso estamos esta leyendo el contenido desde la ruta _opt/app_
-
-Ahora podemos seleccionar la base de datos restaurada
 
 Arrancamos el terminal de mongo
 
