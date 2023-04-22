@@ -489,53 +489,143 @@ Pues que se usa el índice, pero esta vez va en dirección contraría leyéndolo
 
 ![Ahora el indice lo lee del final al principio](./media/12-index-backward.png)
 
-### Strings y RegEx
+### Strings, RegEx y Text Search
+
+\*\*\* TODO MANOLO
+
+Si queremos hacer búsquedas en un string nos podemos encontrar con sorpresas desagradables:
+
+- Si buscamos por una cadena exacta, los índices estándares nos pueden valer.
+- Si buscamos con una expresión regular, sólo nos va a sacarle provecho al índice si buscamos un string que empiece por...
+
+En general si queremos hacer búsquedas en un string, lo mejor es crear un índice de tipo _text_, o si estamos en ATLAS te ofrecen un [ATLAS Text Search](https://www.mongodb.com/community/forums/t/mongodb-atlas-search-indexes-performance-as-compared-to-a-local-mongo-instance/207225), pero ojo que ahí tienes que pillar máquina (además es un servicio aparte basado en _Apache Lucene_, esta tecnología de base se usa también en _ElasticSearch_), otra alternativa puede ser _Algolia_.
+
+Bueno hasta aquí toda la teoría vamos a ver que esto es así... :)
+
+Vamos a por el campo título de película, vamos crear un indice normal:
+
+```bash
+db.movies.createIndex({title: 1})
+```
+
+Vamos a buscar por un título exacto:
+
+```bash
+db.movies.find({title: "Blade Runner"}).explain("executionStats");
+```
+
+Que bien !
+
+Ahora vamos a buscar por una expresión regular, todas las pelis que empiecen por _star wars_:
+
+```bash
+db.movies.find({title: /^Star Wars/}).explain("executionStats");
+```
+
+Toma resultados !!
+
+Vale, pues ahora vamos a buscar por una expresión regular todas las pelis que contengan _wars_:
+
+```bash
+db.movies.find({title: /wars/}).explain("executionStats");
+```
+
+Buf, vaya esto no va
+
+Vamos a hacer un drop de ese indice:
+
+```bash
+db.movies.dropIndex("title_1")
+```
+
+TODO: MANOLO Indices de texto, resumimos estos dos videos
+
+https://www.lemoncode.tv/curso/mongodb-indices/leccion/mongodb-indices-text-i
+
+https://www.lemoncode.tv/curso/mongodb-indices/leccion/mongodb-indices-text-ii
 
 ### Arrays
 
 ### Indices únicos
 
+Hay ocasiones en los que tenemos campos de los que estamos seguros que vamos a tener valores únicos, por ejemplo:
+
+- El ISBN de un libro.
+- El DNI de una persona.
+- El Email de un usuario.
+
+Es más si esto no es así preferimos dar un error que tener datos duplicados.
+
+Si lo tienes claro, puedes indicar a _MongoDB_ que cree un índice único para ese campo, supongamos que tenemos una colección de cuentas de usuarios y un campo _email_, vamos crear un índice único para este campo:
+
+```bash
+db.users.createIndex({email: 1}, {unique: true})
+```
+
+Estos índices están más optimizados para búsquedas, pero si intentamos insertar un documento con un valor de email que ya existe, nos dará un error:
+
 ### Indices parciales
 
----
+Hay veces que puede que nos interese crear un índice para un campo, pero sólo para aquellos documentos que cumplan una condición.
 
-Consultas normales sin indices:
+Por ejemplo:
 
-Una que consulte por un año de película
+- Tengo una lista de carritos de la compra enorme, y donde esta el 90% del tráfico es en los carritos que están activos.
+- ¿Por qué no crear un índice que cubra sólo el estado _active_?
 
-Otra que consulte por un rango de años
+```bash
+db.carts.createIndex({status: 1}, {partialFilterExpression: {status: "active"}})
+```
 
-Otra que ordene por año
+Antes de continuar vamos a eliminar los indices de película y partimos de cero:
 
-Explicar aquí constraint indice _unique_ true:
+```bash
+db.movies.dropIndexes();
+```
 
-https://learn.mongodb.com/learn/course/mongodb-indexes/lesson-2-creating-a-single-field-index-in-mongodb/learn
+> Esto lo borra todo menos el de _id_
 
-Minuto 2:09
+Como curiosidad se puede montar una función para ver que índices borrar
 
-Si voy a insertar algo duplicado pega un castañazo
+```bash
+db.movies.getIndexes().forEach(function(index) {
+  if (index.name !== '_id_') {
+    db.movies.dropIndex(index.name);
+  }
+})
+```
 
-Vamos a por el _Explain_ commando o _mongo compass_
+En nuestro caso vamos a hacer un índice parcial para películas que se hayan estrenado a partir de 2010:
 
-Explain --> Winning plan es el plan que gano, Mongo se puede plantear varios planes y el que gana es el que mejor rendimiento tiene.
+```bash
+db.movies.createIndex({year: 1}, {partialFilterExpression: {year: {$gte: 2010}}})
+```
 
-¿Puedo yo elegir el plan que quiero que se ejecute? Le puedes dar "pistas" hint... pero salvo que pilotes un huevo mejor deja a Mongo que es "muy listo"
+[Más información acerca de índices parciales](https://www.mongodb.com/docs/manual/core/index-partial/)
 
-Veamos una query:
+Vamos a lanzar una consulta de películas que se hayan estrenado a partir de 2012:
 
-Fetch stage (sólo lee los documentos que el índice a identificado)
-IXScan
+```bash
+db.movies.find({year: {$gte: 2012}}).explain("executionStats");
+```
 
----
+Fíjate que aquí se aplica el índice.
 
-Aquí ordenamos por fecha nacimiento y ordenamos por email
-¿Qué pasa aquí que sólo pilalría el indice de fecha de nacimiento?... nos van haciendo falta indices compuestos
+¿Y si pedimos películas que se estrenaron antes de 1998?
 
-Aquí habría que tener en cuenta la parte de rejected plan y ver que miro el indice de sort
+```bash
+db.movies.find({year: {$lt: 1998}}).explain("executionStats");
+```
 
----
+Anda, no hay indice... tenemos un COLLSCAN
 
-Probar una con COLLSCAN otro campo
+¿Y si hacemos algo mixto, pelís que se estrenaron después de 1998?
+
+```bash
+db.movies.find({year: {$gte: 1998}}).explain("executionStats");
+```
+
+Aquí también tiramos de COLLSCAN
 
 # Multikey index, array fields in index
 
@@ -547,11 +637,13 @@ es decir si un indice esta compuesto por multiples campos solo uno de ellos pued
 Internamente cuando mongo se encuentre un campo array en un indice lo descompone y crea un indica por cada valor encontrar como un indice individual.
 
 Si creamos un indice en un campo array (vamos a por uno que sea simple), fiujate
-que en el explain, winnning plan nos dice
+que en el explain, winning plan nos dice
 
 ```
+
 isMultikey: true,
 multiKeyPaths: {accounts: ['accounts']}
+
 ```
 
 ¿Qué pasa si son subdocumentos? Tenemos que probarlo
@@ -612,6 +704,8 @@ TTL indexes
 
 Text Indexes
 
+# Wildcard Indexes
+
 # ATLAS
 
 El index advisor
@@ -626,3 +720,5 @@ https://www.mongodb.com/blog/post/performance-best-practices-indexing
 
 dups ejemplo
 https://medium.com/@zhaoyi0113/how-to-use-explain-to-improvement-mongodb-performance-3adadb1228f1
+
+# Tooling Mongo Compass
