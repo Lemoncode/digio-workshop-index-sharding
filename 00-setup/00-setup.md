@@ -133,6 +133,8 @@ así _Mongo Compass_ lo toma como la base de datos en local que está instalada 
 
 Cuando ya no nos haga falta un contenedor en concreto lo único que tenemos que hacer es eliminarlo con el siguiente comando:
 
+**NO EJECUTAR ESTO AHORA**
+
 ```bash
 docker container rm my-mongo-db -f
 ```
