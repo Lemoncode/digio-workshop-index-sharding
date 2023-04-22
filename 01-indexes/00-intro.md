@@ -119,6 +119,8 @@ Si te fijas esto ha dado una respuesta relativamente rápida ¿Por qué?
 
 # Indices simples
 
+## Entendiendo Explain
+
 Muy bien, ahora sabemos que hay ocasiones en que podemos usar indices, lo suyo es ver si una consulta nos la puede liar :).
 
 En concreto vamos a analizar la consulta que hemos hecho antes, para ello le añadimos _explain_:
@@ -217,8 +219,6 @@ Los valores principales:
 - `needYield`: Si al ejecutar la consulta ha tenido que devolver el control al servidor (interrumpir temporalmente la consulta), esto se puede deber a que está procesando un gran número de documentos, o cuando necesita acceder a datos que no están en la memoría caché. Esto puede ser un mal olor en una consulta (posible cuello de botella), pero no tiene porque serlo siempre.
 - `direction`: Se refiere a la dirección en la que está leyendo la colección, puedes ser hacía delante, atrás, o ninguna en particular (none).
 
----
-
 Vamos a crear un índice para mejorar esta consulta, en este caso será sobre el campo _year_:
 
 ```bash
@@ -283,6 +283,131 @@ Vamos a por la fase siguiente (la superior).
 ![Indicamos que hacemos un FETCH para traernos documentos, y exactamente pedimos los 970 documentos que nos hacen falta](./media/05-stage-fetch.jpg)
 
 Aquí destacamos: indicamos que hacemos un FETCH para traernos documentos, y exactamente pedimos los 970 documentos que nos hacen falta.
+
+## Queries más complejas
+
+Tener un índice que sólo tiene en cuenta un campo, y una consulta que justo sólo filtra por ese campo está muy bien para un ejemplo, pero en la vida real solemos tirar consultas más complejas, vamos a subir un nivel y ver que tal se porta esto ¿Será suficiente o tendremos que buscar una solución más elaborada?
+
+Vamos a empezar a jugar con diferentes combinaciones de consultas y ver como se portan esto índices de un sólo campo.
+
+### Filtrando por más de un campo
+
+### Aplicando rangos
+
+Vamos a aprovechar que tenemos creado el índice sobre el campo _year_ y vamos a hacer una consulta que filtre por un rango de años.
+
+```bash
+db.movies.find({year: {$gte: 2010, $lte: 2015}}).explain("executionStats");
+```
+
+¿Qué creéis que va a pasar? En este caso:
+
+- La consulta dura 7 milisegundos.
+- Realiza un _IXScan_ y después un _Fetch_
+- Se examenan 5970 claves y se devuelven 5970 documentos.
+- El rango de valores _indexBound_ es de 2010 a 2015
+
+### Combinado con filtrado
+
+#### And
+
+Vamos ahora a buscar películas que sean de 2010 y que tengan una duración mayor de 180 minutos.
+
+Si hacemos un count tenemos que:
+
+```bash
+db.movies.find({year: 2010, runtime: {$gt: 180}}).count();
+```
+
+Hay sólo 6 películas que cumplen con esa condición.
+
+Si pedimos el _explain_ de la consulta:
+
+```bash
+db.movies.find({year: 2010, runtime: {$gt: 180}}).explain("executionStats");
+```
+
+Tenemos que:
+
+- Se examinan 970 claves y 970 documentos.
+- Se devuelven 6 documentos (nReturned).
+- Son menos de mil elementos, tarda poco 1 milisegundo.
+
+¿Qué está pasando aquí? Pues que Mongo se da cuenta que lo más optimo es utilizar el índice por año y después iterar sobre él para buscar las películas que cumplan con la duración.
+
+¿Qué pasaría si creamos un índice por la duración?
+
+> Una nota sobre los índices, ojo un índice trae cuenta cuando hay un buen número de clase, por ejemplo crear un índice sobre un campo booleano tendría sentido, ya que sólo tendríamos dos valores indexados.
+
+Vamos a crear un índice por la duración:
+
+```bash
+db.movies.createIndex({runtime: 1});
+```
+
+Si volvemos a hacer la consulta:
+
+```bash
+db.movies.find({year: 2010, runtime: {$gt: 180}}).explain("executionStats");
+```
+
+Ahora tenemos cosas interesantes:
+
+Por un lado ya hay _pelea_ de _índices_ Mongo se da cuenta de que podría usar más de un índice para resolver la consulta, y elige el que mejor rendimiento tiene, fijate en _winningPlan_ y _rejectedPlans_.
+
+Wining plan
+
+![Gana el plan con el índice sobre duración](./media/06-winning.jpg)
+
+Rejected plans
+
+![Pierde el plan con el índice sobre año](./media/07-rejected.jpg)
+
+Si miramos las execution stats, vemos que el usando el índice sobre _runtime_ (IXScan stage) nos devuelve 370 documentos, cuando usamos el de _año_ nos devolvía 970.
+
+> Si te fijas en milisegundos tarda un poco más (estamos hablando de consultas muy rápidas 1 a 3 Ms no sería tan representativo).
+
+¿Y si pusiéramos una condición muy laxa en duración, por ejemplo que dure más de un minuto? (nos va a devolver una burrada de documentos).
+
+```bash
+db.movies.find({year: 2010, runtime: {$gt: 1}}).explain("executionStats");
+```
+
+En este caso elije tirar por el índice de año, ya que nos da un subconjunto más pequeño de documentos.
+
+> MongoDB utiliza un optimizador e consultas ppara seleccionar el índice más adecuado para cada consulta y generar planes de ejecución posibles. Luego, selecciona el plan de ejecución más eficiente utilizando la estimación de coste para minimizar el número de operaciones de entrada salidas necesarias para la consulta.
+
+¿Podemos forzar a mongo a elegir un índice? Si, con _hint_ vamos a decir que use el índice de duración.
+
+```bash
+db.movies.find({year: 2010, runtime: {$gt: 1}}).hint({runtime: 1}).explain("executionStats");
+```
+
+Cuando forzamos a que use éste índice podemos ver que los resultados son bastante más malos:
+
+- Tenemos que examinar 23077 claves y documentos para devolver 937 documentos.
+- Tarda en ejecutarse 46 Ms
+- Eso si... no hay _rejectedPlans_ ;).
+
+![Forzando a que se use el indice con hint en este caso da resultados mucho peores](./media/08-hint.jpg)
+
+Salvo que sepamos muy bien lo que estemos haciendo, no es recomendable usar _hint_.
+
+#### Or
+
+### Ordenación
+
+#### Ascendente
+
+#### Descendente
+
+### Strings y RegEx
+
+### Arrays
+
+### Indices únicos
+
+### Indices parciales
 
 ---
 
