@@ -393,13 +393,101 @@ Cuando forzamos a que use éste índice podemos ver que los resultados son basta
 
 Salvo que sepamos muy bien lo que estemos haciendo, no es recomendable usar _hint_.
 
+¿Y por qué no se usan los dos índices? Buena pregunta, que opciones tenemos:
+
+- MongoDB puede utilizar intersección de indices, pero depende la consulta, y no siempre vas a tener mejor rendimiento.
+- Veremos más adelante que una práctica común es crear índices compuestos (es decir indexar por más de un campo), [según los chicos de MongoDB este tipo de índices son más eficientes que la intersección de índices](https://jira.mongodb.org/browse/SERVER-3071?focusedCommentId=508454&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-508454).
+
 #### Or
+
+Vamos a probar ahora a hacer una _or_ con dos condiciones, por ejemplo que la película sea de 2010 o que la duración sea mayor de 180 minutos.
+
+```bash
+db.movies.find({$or: [{year: 2010}, {runtime: {$gt: 180}}]}).explain("executionStats");
+```
+
+Aquí si tenemos un resultado interesante, al ser una OR:
+
+- Mongo añade una fase de subplan y una stage OR.
+- Para la parte en la que se filtra por año aplica el índice de año.
+- Para la parte en la que se filtra por duración aplica el índice de duración.
+- Se mezclan los resultados y se devuelven.
+
+![Al ser una OR puede usar los dos índices](./media/09-two-index.jpg)
 
 ### Ordenación
 
+Vamos ahora a jugar con la ordenación.
+
 #### Ascendente
 
+¿Qué pasa si queremos ordenar por año de forma ascendente?
+
+¿Qué indices tenemos?
+
+```bash
+db.movies.getIndexes()
+```
+
+Vamos a borrar el índice de año:
+
+```bash
+db.movies.dropIndex("year_1")
+```
+
+```bash
+db.movies.find({}).sort({year: 1}).explain("executionStats");
+```
+
+Aquí volvemos a nuestro amigo _COLLSCAN_ y tenemos que la operación tarda 53 Ms (executionTimeMillisEstimate).
+
+Vamos a volver a crear el índice y ver si mejoramos algo los resultados.
+
+```bash
+db.movies.createIndex({year: 1})
+```
+
+```bash
+db.movies.find({}).sort({year: 1}).explain("executionStats");
+```
+
+Si nos fijamos aquí tenemos:
+
+- Volvemos a la combinación de FETCH e IXSCAN.
+- Se hace uso del índice _year_1_ para ordenar los resultados.
+- Bajamos a 26 milisegundos la ejecución.
+
+¿Y si combinamos duración y ordenar por año?
+
+```bash
+db.movies.find({runtime: {$gt: 180}}).sort({year: 1}).explain("executionStats");
+```
+
+En tu caso, es probable el índice de duración se usa como el índice principal en la consulta porque el criterio de búsqueda por duración tiene una mayor selectividad que el criterio de búsqueda por año de publicación. Como resultado, MongoDB puede optar por usar el índice de duración para filtrar los documentos y luego ordenarlos en memoria.
+
+![En este caso aplica el otro indice y decide ordenar en memoria](./media/10-in-memory.jpg)
+
+¿Y si probamos a tener un filtro de duración muy laxo? Películas que duren más de 10 minutos.
+
+```bash
+db.movies.find({runtime: {$gt: 10}}).sort({year: 1}).explain("executionStats");
+```
+
+Esto devuelve un porrón de resultados, así que el planificador de _MongoDB_ prefiere utilizar el índice de año y tirar de este índice para la ordenación.
+
+![Aquí se usa el indice para la ordenación](./media/11-index-sort.jpg)
+
 #### Descendente
+
+Para terminar, si te fijas el indice de año es ascendente, ¿qué pasa si queremos ordenar por año de forma descendente?
+
+```bash
+db.movies.find({}).sort({year: -1}).explain("executionStats");
+```
+
+Pues que se usa el índice, pero esta vez va en dirección contraría leyéndolo (_backward_), no nos hace falta crear un índica para descendente y otro ascendente en este caso.
+
+![Ahora el indice lo lee del final al principio](./media/12-index-backward.png)
 
 ### Strings y RegEx
 
