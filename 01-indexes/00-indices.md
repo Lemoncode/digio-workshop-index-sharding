@@ -629,46 +629,241 @@ Aquí también tiramos de COLLSCAN
 
 # Multikey index, array fields in index
 
-Podemos indexar primitivas, subdomcumentos,subarrays
+Además de campos simples, podemos crear indices en campos array o subdocumentos.
 
-Solo podemos indicar un campo del array por indice,
-es decir si un indice esta compuesto por multiples campos solo uno de ellos puede ser un array (esto tenemos que probarlo).
+Una limitación importante: sólo podemos indicar un campo de tipo array por índice (esto nos afectará cuando creemos campos compuestos).
 
-Internamente cuando mongo se encuentre un campo array en un indice lo descompone y crea un indica por cada valor encontrar como un indice individual.
+vamos a sacar un consulta en la que vamos a mostrar del campo genres (un array con generos) todos los generos distintos
 
-Si creamos un indice en un campo array (vamos a por uno que sea simple), fiujate
-que en el explain, winning plan nos dice
-
+```bash
+db.movies.distinct("genres").sort()
 ```
 
-isMultikey: true,
-multiKeyPaths: {accounts: ['accounts']}
+La lista de géneros que nos salen:
 
+```js
+[
+  "Action",
+  "Adventure",
+  "Animation",
+  "Biography",
+  "Comedy",
+  "Crime",
+  "Documentary",
+  "Drama",
+  "Family",
+  "Fantasy",
+  "Film-Noir",
+  "History",
+  "Horror",
+  "Music",
+  "Musical",
+  "Mystery",
+  "News",
+  "Romance",
+  "Sci-Fi",
+  "Short",
+  "Sport",
+  "Talk-Show",
+  "Thriller",
+  "War",
+  "Western",
+];
 ```
+
+¿Analizamos la consulta a ver que tal ha ido?
+
+```bash
+db.movies.explain("executionStats").distinct("genres")
+```
+
+> Tenemos que poner explain primero, porque _distinct_ no genera un cursor
+
+Tenemos que:
+
+- Ha hecho un _COLLSCAN_
+- Ha recorrido los 23500 documentos.
+- Ha tardado 11 milisegundos.
+
+Vamos a crear un índice en el campo genres:
+
+```bash
+db.movies.createIndex({genres: 1})
+```
+
+Vamos a repetir la consulta:
+
+```bash
+db.movies.explain("executionStats").distinct("genres")
+```
+
+![se usa el índice y no se hace fetch](./media/13-index-covered-array.jpg)
+
+Veamos las stats:
+
+- Se hace uso del indice.
+- Se examinan sólo 26 keys.
+- Se hace un scan.
+- Me da un resultado por debajo del milisegundo.
+- ¡ No se hace fetch ! Los campos que devolvemos en la consulta ya están en el índice y no hay que ir a buscarlos, esto veremos que es una optimziación muy interesante cuando trabajemos con índices compuestos.
+- Y un ultimo tema fijate que ahora _isMultiKey_ aparece como _true y los \_multiKeysPath_ se indica que es el campo _genres_
+
+Ahora vamos a hacer otra consulta, esta vez filtrar por las películas de ciencia ficción:
+
+```bash
+db.movies.find({genres: "Sci-Fi"}).explain("executionStats");
+```
+
+En esta colección de movies todo los campos arrays son tipos primitivos, pero se puede crear un indice de un campo de un objeto de un array.
 
 ¿Qué pasa si son subdocumentos? Tenemos que probarlo
 
 # Indices compuestos
 
-Indice en multiples fichero, admite muli key (arrays) pero como comentamos un sólo un campo array por índice
+Hasta ahora hemos creado índices por un sólo campo, pero normalmente en las consultas filtramos y ordenamos por varios campos.
+
+Para partir de algo en limpio vamos a borrar todos los índices de la colección movies:
+
+```bash
+db.movies.dropIndexes();
+```
+
+Vamos a ver que pasa si creo una consulta en la que quiero que me saque por pantallas al películas de ciencia ficción, que se estrenaron después de 2010 y ordenadas por año:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({year: 1}).explain("executionStats");
+```
+
+Tenemos un _COLLSCAN_ como era de esperar
+
+¿Y si creamos un índice en el campo genres y otro para year?
+
+```bash
+db.movies.createIndex({genres: 1});
+```
+
+```bash
+db.movies.createIndex({year: 1});
+```
+
+Vamos a volver a tirar la consulta:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({year: 1}).explain("executionStats");
+```
+
+Aquí tenemos que:
+
+- Ha devuelto 279 documentos.
+- Ha realizado la ordenación en memoria.
+- Ha tardado 15 milisegundos
+- Ha usado el índice por año.
+
+¿Podemos mejorar esto? ¿ Y si tuvieramos un índice por el campo genres y year?
+
+```bash
+db.movies.createIndex({genres: 1, year: 1});
+```
+
+Vamos a volver a probar a tirar la consulta:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({year: 1}).explain("executionStats");
+```
+
+Aquí tenemos que:
+
+- Solo tarda 2 milisegundos.
+- No le hace falta hacer la ordenación en memoria.
+- Fíjate que aquí elije el índice compuesto y tenemos la propiedad _isMultikey_ a true.
+
+¿Este índice me sirve sólo para esta combinación? No, también me puede valer para otras, volvemos a borrar los índices y esta vez vamos a crear un índice por tres campos: genres, year y title:
+
+```bash
+db.movies.dropIndexes();
+```
+
+```bash
+db.movies.createIndex({genres: 1, year: 1, title: 1});
+```
+
+Vamos ahora a tirar una consulta en la que queremos que me saque las películas de ciencia ficción que se estrenaron después de 2010 y ordenadas por año:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({year: 1}).explain("executionStats");
+```
+
+Vemos que ha tirado del índice y todo genial.
+
+¿Y si quisieramos que nos devolvieras las películas de ciencia ficción y ya está?
+
+```bash
+db.movies.find({genres: "Sci-Fi"}).explain("executionStats");
+```
+
+¡ Usa el índice ! Esto es porque el índice empieza por _sci-fi_ entonces es capaz de usarlo (corta y no usa el resto).
+
+Vale, vamos a seguir probando, ¿Si quiero las películas de ciencia ficción y ordenadas por año?
+
+```bash
+db.movies.find({genres: "Sci-Fi"}).sort({year: 1}).explain("executionStats");
+```
+
+Todo ok
+
+Vamos a empezar a hacer combinaciones más raras ¿Y si quiero las películas de ciencia ficción, ordenadas por titulo?
+
+```bash
+db.movies.find({genres: "Sci-Fi"}).sort({title: 1}).explain("executionStats");
+```
+
+Aquí el sort lo ha hecho en memoria.
+
+Y ¿Oye si tengo un índice por genres y year lo puedo aprovechar para hacer una consulta por el campo year?
+
+```bash
+db.movies.find({year: {$gte: 2010}}).explain("executionStats");
+```
+
+Fijate que aquí hace un _COLLSCAN_ y no usa el índice, ¿Por qué? Porque el arbol del indice parte de _genres_, no hay forma de que salte enmedio.
+
+Sin embargo si hacemos el siguiente índice:
+
+```bash
+db.movies.createIndex({year: 1, genres: 1});
+```
+
+Ahora si que tira de ese indice:
+
+```bash
+db.movies.find({year: {$gte: 2010}}).explain("executionStats");
+```
+
+## Multikeys
+
+¿Que pasa si queremos usar un índice compuesto con campos arrays?
+
+Vamos a intentar crear un indice compuesto por dos campos arrays, genres y cast:
+
+```bash
+db.movies.createIndex({genres: 1, cast: 1});
+```
+
+```bash
+MongoServerError: Index build failed: d4ecae56-e7ee-400b-94c4-5cbbeec78ae3: Collection mymovies.movies ( 6358cefa-d9f2-4e53-a4e0-11da863ad200 ) :: caused by :: cannot index parallel arrays [cast] [genres]
+```
+
+Nos da un error, ¿Por qué? Porque no se puede crear un índice compuesto por dos campos arrays.
+
+Lo que si podemos hacer es crear un índice compuesto por un campo array y varios no array.
+
+## ESR
+
+---
 
 Ejercicio,
 
 Indice por tres campos
-
-Ver que puedo si tengo
-
-active, birthdate, name
-
-que por querty por active y birthdate aprovecha el indice
-
-y si es active solo tb
-
-y si es birthdate no
-
-Y si sort active?
-
-probar una query parcial y tb probar a mover campos y que mongo reordena
 
 Orden para indices (ojo ejercicios):
 
@@ -722,3 +917,7 @@ dups ejemplo
 https://medium.com/@zhaoyi0113/how-to-use-explain-to-improvement-mongodb-performance-3adadb1228f1
 
 # Tooling Mongo Compass
+
+```
+
+```
