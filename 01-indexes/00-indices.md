@@ -627,6 +627,8 @@ db.movies.find({year: {$gte: 1998}}).explain("executionStats");
 
 Aquí también tiramos de COLLSCAN
 
+> Otro índice interesantes es el SPARSE que sólo indexa los documentos que tengan ese campo informado.
+
 # Multikey index, array fields in index
 
 Además de campos simples, podemos crear indices en campos array o subdocumentos.
@@ -929,7 +931,7 @@ Y si nos fijamos en las executionStages:
 - No le hace falta hacer un sort en memoria
 - Hace un FETCH para sacar los documentos.
 
-Si encima tuvieramos la suerte de que sólo nos hiciera falta los campos que están en el indice para mostrarlos en pantalla, no tendríamos no que hacer el _FETCH_ de los documentos:
+Si encima tuviéramos la suerte de que sólo nos hiciera falta los campos que están en el indice para mostrarlos en pantalla, no tendríamos no que hacer el _FETCH_ de los documentos:
 
 ```bash
 db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort({title: 1}).explain("executionStats");
@@ -960,29 +962,44 @@ db.movies.hideIndex({genres: 1, title: 1, year: 1});
 
 # Otro indices
 
-TTL indexes
+## TTL indexes
 
-Text Indexes
+\*\* TODO Antonio
+
+## Text Indexes
+
+\*\* TODO Antonio Tenemos material de Videos Lemon Tv y después tenemos que comentar de GastroCarta como ajustamos las busquedas para que no le diera peso a la le lo una... y el problema con los hiatos, _cervercería_ y _cerveceria_
+
+Aquí comentaremos que si trabajas con ATLAS ellos ofrecen un sistema de indexado basado en Apache Lucene, que es para evitar que tengas que sacar tu datos a un Algolia o un ElasticSearch, pero ojo que ya es para clusters dedicados y depende del número de clusters que tengas puedes crear más o menos índices (en una M0 uno sólo, más info: https://www.mongodb.com/community/forums/t/mongodb-atlas-search-indexes-performance-as-compared-to-a-local-mongo-instance/207225)
 
 # Wildcard Indexes
 
+\*\* De este tenemos un video en Lemon Tv, igual nos hace falta el data set de AirBnb mira a ver si te lo puedes traer y lo montamos en el Github que tenemos
+
 # ATLAS
 
-El index advisor
+Si estás trabajando con el hosting oficial de Mongo (ATLAS), y tienes contratado un cluster (a partir de un M0), tienes un advisor para crear índices:
 
-Las busquedas de texto con ATLAS
+- Nos vamos a nuestro portal de ATLAS.
+- Nos vamos a la pestaña de _Performance Advisor_.
 
-\*\*\* MAS
+Aquí aparecen varias cards en las que nos da consejos basado en el uso sobre que indices crear entre otras cosas.
 
-Indices parciales, esto está chulo
-
-https://www.mongodb.com/blog/post/performance-best-practices-indexing
-
-dups ejemplo
-https://medium.com/@zhaoyi0113/how-to-use-explain-to-improvement-mongodb-performance-3adadb1228f1
+![Pantallas de ATLAS Performance advisor, con las diferentes cards en la que te indican si han detectado algo que hay que mejorar](./media/14-atlas-performance-advisor.jpg)
 
 # Tooling Mongo Compass
 
+En _Mongo Compass_, tenemos dos vistas interesantes:
+
+- Explain plan: es una forma más gráfica de ver el explain plan de una consulta.
+- Indexes: es una forma más gráfica de ver los indices que tenemos en una colección, también podemos crearlos etc.
+
+Por ejemplo vamos a lanzar la última consulta:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort({title: 1})).explain("executionStats");
 ```
 
-```
+![La consulta, en compass tenemos que poner los campos por separados, ojo hay que darle a options para ver el sort y el project](./media/15-explain-plan-query.jpg)
+
+![Aquí puedes ver de forma gráfica el explain de la query, pintas unas cajas, las une... si estás leyendo esto porque eres invidente creo que puede ser más accesible el JSON](./media/16-explain-plan-query.jpg)
