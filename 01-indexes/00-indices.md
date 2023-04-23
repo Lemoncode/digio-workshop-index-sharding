@@ -859,39 +859,104 @@ Lo que si podemos hacer es crear un índice compuesto por un campo array y vario
 
 ## ESR
 
----
+ESR son las siglas de **E**quality **S**ort **R**ange y es un consejo a la hora de ordenar los campos de un índice compuesto:
 
-Ejercicio,
+- **Primero Equality:** es cuando comparamos algo con un resultado concreto (por ejemplo año es igual 2010), es una forma muy rápida de que el indice elija justo esas entradas.
+- **Segundo Sort:** Si estamos ordenando la consulta por un campo en concreto, esta es nuestra segunda opción, ya hemos reducido el número de documentos que tenemos que ordenar con equality, vamos a aprovechar para ordenarlos.
+- **Tercero Consultas de rango:** En este tipo de consultas, pedimos valores que sean mayores que o menores que (por ejemplo, películas entre el 2010 y el 2015), aquí tenemos que acotar el rango lo máximo posible, MongoDB no puede hacer tirar de indices al resultado de tipo rango.
 
-Indice por tres campos
+[Más informacíon al respecto sobre ESR](https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/)
 
-Orden para indices (ojo ejercicios):
+Vamos a hacer una prueba:
 
-- ESR:
-  - Primero equality (reduce query time y menos documentos va a al grano)
-  - Despues sort (si lo tenemos bien montado el sort no lo hace en memoria, eso es importante)
-  - Despues comparación de rango (aquí es mejor que el rango esta al final para evitar in memory sort)
+Borramos indices de la colección de movies por si acaso:
 
-Ojo aquí el sort order importantes,
+```bash
+db.movies.dropIndexes();
+```
 
-https://learn.mongodb.com/learn/course/mongodb-indexes/lesson-4-working-with-compound-indexes-in-mongodb/learn?page=1
+Vamos a crear una consulta en la que queremos que nos devuelva las películas de ciencia ficción que se estrenaron después de 2010 y ordenadas por titulo:
 
-Tercer video (3:35), muy interesante el explain, te dice que tira del scan
-tira de un indice simple, hace un fetch y un filter, y despues el stage: sort, lo hace en memoria (memLimit)
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({title: 1}).explain("executionStats");
+```
 
-Si creamos el ornde e equality, y sortm ,ojo y descending y ascending
+Sin indices, como siempre, un collscan como un castillo, recorre 23000 documentos y tarda 23 milisegundos.
 
-Jugar despues con los ordenes si lo invertimos va, pero si los bailmos (los dos 1), seguramente lo haga todo en memoria
+Vamos a crear un indice sin tener en cuenta ESR, por ejemplo por, año, titulo y genero:
 
-Probamos uno exacto, fijate uqe no hay sort
+```bash
+db.movies.createIndex({year: 1, title: 1, genres: 1});
+```
 
-por otro lado hacemo fetch para leer los documentos completos, pero si el indice tuveria esos cmapos directamente se podrían servir del indice, si lo devolvemos los campos del indice (proyección)
+Este índice se llama (year_1_title_1_genres_1).
 
-Ahora en vez de FETCH tenemos 'PROJECTION_COVERED', no hay fetch
+Probamos la consulta de nuevo:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({title: 1}).explain("executionStats");
+```
+
+Tenemos que ha tardado 24 milisegundos, devuelve 279 documentos, pero ha tenido que leer 7145 keys en el indice.
+
+¿Nos animamos a crear un índice siguiendo ESR?
+
+- El primero campo sería genero porque es un equality (voy al grando y reduzo elementos del tirón).
+- Después iría el sort por titulo (salimos del equality, y podemos aprovechar el indices para que haga un sort).
+- Y como paso final vamos a por el rango, que es el año (que el que da más vueltas para obtener los datos).
+
+```bash
+db.movies.createIndex({genres: 1, title: 1, year: 1});
+```
+
+Repetimos la consulta:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({title: 1}).explain("executionStats");
+```
+
+Este se llama: genres_1_title_1_year_1
+
+Fíjate que si empezamos a mirar las stats, tenemos que para empezar:
+
+- Ha elegido el nuevo índice sobre el que creamos antes (ese está como rejected)
+- Hemos examinado sólo 991 key para devolver 279.
+- Ha tardado 5 milisegundos !!
+
+Y si nos fijamos en las executionStages:
+
+- Tira por un IXScan
+- No le hace falta hacer un sort en memoria
+- Hace un FETCH para sacar los documentos.
+
+Si encima tuvieramos la suerte de que sólo nos hiciera falta los campos que están en el indice para mostrarlos en pantalla, no tendríamos no que hacer el _FETCH_ de los documentos:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort({title: 1}).explain("executionStats");
+```
+
+Aquí si te obtenemos un stage _PROJECTION_COVERED_ en vez de un _FETCH_ y el tiempo de ejecución se reduce a 3 milisegundo, no hemos tenido que ir a traernos los documentos, directamente con los campos del índice se pueden sacar.
+
+Cuando estás probando con varios indices no es mala idea jugar con _hint_ y forzar a que use un indice en concreto, para ver los resultaods completos del execution stats:
+
+```bash
+db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort({title: 1}).hint({genres: 1, title: 1, year: 1}).explain("executionStats");
+```
 
 # Borrando inidices
 
-HideIndex, el indice se sigue actualizando pero no se usa en las queries
+Ya hemos visto como borrar indices con DropIndex, lo malo de esta opción es que en un DataSet grande después tener que volver a armarlo se puede comer muchos recursos.
+
+Una opción interesnates es decir:
+
+- Oye quiero que sigas manteniendo el indice.
+- Pero no quiero que lo uses en las consultas hasta próximo aviso.
+
+Esto lo podemos hacer con _HideIndex_
+
+```bash
+db.movies.hideIndex({genres: 1, title: 1, year: 1});
+```
 
 # Otro indices
 
