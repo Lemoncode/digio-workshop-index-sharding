@@ -142,7 +142,9 @@ docker container rm my-mongo-db -f
 En este comando le hemos dicho que elimine el contenedor _my-mongo-db_ que hemos creado, y el
 parametro _-f_ es para forzar su eliminación (así si hay una instancia corriendo la pararía primero).
 
-# Base de datos de ejemplo
+# Bases de datos de ejemplo
+
+## m-flix
 
 En el paso anterior vimos como instanciar un contenedor de **Docker** basado en una imagen que tuviera un MongoDB, y después nos pusimos por línea de comandos a crear una mini base de datos. Esto no esta mal, peeerooo en el mundo real, trabajamos con bases de datos que contienen un montón de información, lo normal es que restauremos un backup y nos pongamos a trabajar usando información cuanto menos parecida a la real.
 
@@ -161,7 +163,7 @@ En caso de que no, puedes seguir los primeros pasos del ejemplo anterior.
 
 Vamos a ir a este [repositorio](https://github.com/Lemoncode/m-flix-backup) y clonamos el repositorio con Visual Studio Code.
 
-Aquí podemos ver una carpeta _m-flix, si entramos podemos ver el backup de varias colecciones
+Aquí podemos ver una carpeta _m-flix_, si entramos podemos ver el backup de varias colecciones
 
 ```
 cd m-flix
@@ -187,13 +189,13 @@ Aquí lo que hacemos es decirle que vamos a copiar el contenido de lo que hay en
 > establecido al crearlo _my-mongo-db_ o reemplazarlo por el identificador de contenedor de la instancia de mongo que estés ejecutando.
 
 ```bash
-docker cp m-flix my-mongo-db:/opt/app
+docker cp m-flix my-mongo-db:/opt/app/m-flix
 ```
 
 Y restauramos el backup
 
 ```bash
-docker exec my-mongo-db mongorestore --db mymovies opt/app
+docker exec my-mongo-db mongorestore --db mymovies opt/app/m-flix
 ```
 
 Con _docker exec_ le estamos diciendo que ejecute el comando _mongorestore_ en el contenedor _my-mongo-db_, que restaure la base de datos que está en la ruta _opt/app_ y la llame _mymovies_.
@@ -229,3 +231,69 @@ db.movies.find().pretty()
 ```
 
 Y como puedes ver tenemos todos los datos disponibles.
+
+## AirBnB
+
+Vamos a hacer lo mismo que en el ejemplo anterior, pero en este caso vamos a restaurar un backup de una base de datos de AirBnB.
+
+Vemos una carpeta llamada _airbnb_ en el [repositorio](https://github.com/Lemoncode/m-flix-backup) que clonamos anteriormente, y si entramos vemos el backup de varias colecciones
+
+```
+cd airbnb
+
+```
+
+```
+ls
+```
+
+Volvemos al nivel superior.
+
+```
+cd ..
+```
+
+Vamos a copiar el contenido de la carpeta _airbnb_ en el contenedor, en concreto lo copiaremos a la ruta _/opt/app/_ y restauramos el backup.
+
+```bash
+docker cp airbnb my-mongo-db:/opt/app/airbnb
+```
+
+Y restauramos el backup:
+
+```bash
+docker exec my-mongo-db mongorestore --db airbnb opt/app/airbnb
+```
+
+Ahora podemos entrar en nuestro contenedor:
+
+```
+docker exec -it my-mongo-db sh
+```
+
+Arrancamos el terminal de mongo
+
+```bash
+mongosh
+```
+
+Seleccionamos la base de datos recien restaurada:
+
+```
+use airbnb
+```
+
+Vemos que colecciones tenemos disponibles
+
+```
+show collections
+```
+
+Y ejecutamos una query contra la colección _movies_
+
+```
+db.listingsAndReviews.find().pretty()
+```
+
+Y como puedes ver tenemos todos los datos disponibles.
+
