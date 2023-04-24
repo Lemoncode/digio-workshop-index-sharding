@@ -236,6 +236,8 @@ Y como puedes ver tenemos todos los datos disponibles.
 
 Vamos a hacer lo mismo que en el ejemplo anterior, pero en este caso vamos a restaurar un backup de una base de datos de AirBnB.
 
+## Manos a la obra
+
 Vemos una carpeta llamada _airbnb_ en el [repositorio](https://github.com/Lemoncode/m-flix-backup) que clonamos anteriormente, y si entramos vemos el backup de varias colecciones
 
 ```
