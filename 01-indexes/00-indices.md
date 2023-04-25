@@ -1,6 +1,6 @@
 # Indices
 
-## Para que sirven
+## Para qué sirven
 
 Los índices en Mongo nos permiten hacer que una consulta tarde menos en ejecutarse, a cambio de que la inserción / actualización de datos sea más lenta.
 
@@ -18,8 +18,8 @@ Cuando pensamos en un índice podemos pensar en un libro, la tabla de índice de
 
 Es decir si quiero buscar una palabra mejor que ir página por página, me voy a buscar en la parte de atrás y tardo menos, es decir:
 
-- Si no utilizo el indice tendría que ir pagina por pagina buscando, eso es lo que en Mongo lo llamamos hacer un _collection scan_ (COLLSCAN).
-- Si utilizo el indice, voy a la parte de atrás y me salto todas las páginas que no me interesan, esto es mucho más rápido es lo que en Mongo llamamos un _index scan_ (IXSCAN), pero ojo:
+- Si no utilizo el índice tendría que ir página por página buscando, eso es lo que en Mongo lo llamamos hacer un _collection scan_ (COLLSCAN).
+- Si utilizo el índice, voy a la parte de atrás y me salto todas las páginas que no me interesan, esto es mucho más rápido, es lo que en Mongo llamamos un _index scan_ (IXSCAN), pero ojo:
   - Estoy pagando el pato de _añadir páginas al libro_
   - Si el libro fuera online y estuviera vivo (el autor lo va actualizando), tendría que ir recalculando el índice cada vez que introdujera nuevas páginas (esto es lo que en Mongo se llama _reindexing_), y esto tiene un coste, lo podemos comparar con cuando un usuario introduce e
 
@@ -27,19 +27,19 @@ Los índices en Mongo son como un árbol binario, donde cada nodo es un document
 
 ¿Se puede usar más de un índice en una consulta?
 
-- MongoDB soporta los XXXX en una consulta, pero normalmente no los usa ya que da peor rendimiento que un indice compuesto.
+- MongoDB soporta los XXXX en una consulta, pero normalmente no los usa ya que da peor rendimiento que un índice compuesto.
 
 - Lo normal es que se use un sólo indice, a ser que tengamos una consulta con un OR que puede usar más de uno.
 
 ¿Los Indices son siempre igual de efectivos? No, si hacemos un matching exacto el índice es más efectivo que si hacemos una consulta por rango.
 
-Que campos, no tiene sentido un indi e en un booleano por ejemplo
+Que campos, no tiene sentido un índice en un booleano por ejemplo.
 
-## Tipos de indices
+## Tipos de índices
 
 Para empezar MongoDB nos crea un índice por cada campo **\_id**, así que ese campo ya lo tenemos cubierto.
 
-Después podemos crear indices:
+Después podemos crear índices:
 
 - Simples: Un índice que solo tiene un campo (por ejemplo el campo nombre de cliente).
 - Compuestos: Un índice que tiene varios campos (por ejemplo el campo nombre de cliente y el edad).
@@ -90,26 +90,26 @@ db.movies.find({year: 2010}).count()
 
 En 2010 se estrenaron un total de 970 películas.
 
-Por curiosidad ¿Cuantas películas en total tenemos en la colección?
+Por curiosidad ¿Cuántas películas en total tenemos en la colección?
 
 ```bash
-db.movies.count()
+db.movies.countDocuments()
 ```
 
-Algo más de 23.000 pelícuas.
+Algo más de 23.000 películas.
 
 Si te fijas esto ha dado una respuesta relativamente rápida ¿Por qué?
 
 - Tenemos una buena máquina para desarrollar.
 - No hay carga de otros usuarios accediendo.
-- La colección no es muy grande, y igual en nada la tenemos cargada en el working set y en memoria.
+- La colección no es muy grande, e igual en nada la tenemos cargada en el working set y en memoria.
 
 ¿Qué debemos tener en cuenta?
 
 - No hay bala de plata, todo depende mucho de número de elementos, la de veces que se ejecute una consulta (no es lo mismo un sysadmin que ejecute una consulta al mes que tarde 5 segundos, que 200 usuarios concurrente ejecutando una consulta con diferentes valores que tarde 2 segundos).
-- Si una colección tiene menos de 1000 elementos y la consulta es simple un indice igual no aporta demasiado.
+- Si una colección tiene menos de 1000 elementos y la consulta es simple un índice igual no aporta demasiado.
 - Si la colección es grande (por ejemplo, más de 10,000 documentos) y la consulta implica filtrar, ordenar o agrupar documentos basados en ciertos campos, es probable que se necesite un índice para mejorar el rendimiento de la consulta.
-- Por otro lado, tenemos que preveer como va creciendo nuestra base de datos, crear un indice desde cero en una colección enorme tiene su coste.
+- Por otro lado, tenemos que preveer como va creciendo nuestra base de datos, crear un índice desde cero en una colección enorme tiene su coste.
 - Una buena forma de ver si una consulta puede dar problemas es utilizar el comando _explain_ de Mongo (esto lo veremos en breve).
 - En Mongo Atlas (Mongo siempre te va a empujar a que lo uses), tienes un Performance Advisor que te da recomendaciones en base a tu uso, existen opciones para deployments custom pero $$$:
   - [Mongo Ops Manager](https://www.mongodb.com/es/products/ops-manager)
@@ -247,13 +247,13 @@ En el _WinningPlan_
 
 Vamos al detalle:
 
-- `stage + inputStage:` fijate que tenemos dos fases (una anidada dentro la otra), primero obtenemos los _ids_ de los documentos que cumplen con esa busqueda utilizando el índice, y después hacemos un fetch de los documentos para poder mostrar los datos (ya veremos que en algunos casos hay un truco para evitar esto).
+- `stage + inputStage:` fíjate que tenemos dos fases (una anidada dentro la otra), primero obtenemos los _ids_ de los documentos que cumplen con esa búsqueda utilizando el índice, y después hacemos un fetch de los documentos para poder mostrar los datos (ya veremos que en algunos casos hay un truco para evitar esto).
 - `indexName`: El nombre del indice que se está usando.
 - `isMultiKey` : si tenemos un índice sobre un campo array (lo veremos más adelante).
-- `isSparse`: esto es util cuando un campo solo viene informado en algunos documentos (imagínate que el campo cuenta _tiktok_ es opcional), si el indice es sparse solo se indexan los documentos que tienen ese campo.
-- `isPartial`: este tipo de indices está muy chulo (lo veremos más adelante), pero imagínate que tienes pedidos y pueden tener varios estados, ¿Por qué no sólo indexar los que tengan el estado _inProgress_? Bien usado, en colecciones grandes puede ser muy util (balance entre potencia del índice y ahorro en espacio).
+- `isSparse`: esto es útil cuando un campo solo viene informado en algunos documentos (imagínate que el campo cuenta _tiktok_ es opcional), si el índice es sparse solo se indexan los documentos que tienen ese campo.
+- `isPartial`: este tipo de índices está muy chulo (lo veremos más adelante), pero imagínate que tienes pedidos y pueden tener varios estados, ¿Por qué no sólo indexar los que tengan el estado _inProgress_? Bien usado, en colecciones grandes puede ser muy útil (balance entre potencia del índice y ahorro en espacio).
 - `indexVersion`: Esto es para para SysAdmins, indica qué version del formato de índice se está usando.
-- `indexBounds`: Aquí se muestra el rango de valores que se uso para la busqueda en el indice, en este caso el rango está entre 2010 y 2010, sería interesante tirar una consulta por rangos de años y ver que valores ofrece.
+- `indexBounds`: Aquí se muestra el rango de valores que se uso para la búsqueda en el indice, en este caso el rango está entre 2010 y 2010, sería interesante tirar una consulta por rangos de años y ver que valores ofrece.
 
 En el execution stats, vamos a dividir esto en fases.
 
@@ -263,7 +263,7 @@ Primero el sumario:
 
 En detalle:
 
-- `nReturned`: ha devuelto 970 documento (lo esperado, igual que en la consulta sin índice).
+- `nReturned`: ha devuelto 970 documentos (lo esperado, igual que en la consulta sin índice).
 - `executionTimeMillis`: pasamos de 21Ms a 2Ms.
 - `totalKeysExamined`: solo ha tenido que examinar 970 claves en los índices (justo lo que tenía que devolver).
 - `totalDocsExamined`: solo ha tenido que examinar 970 documentos (justo lo que tenía que devolver).
@@ -275,7 +275,7 @@ Vamos ahora a por cada fase, empezamos por la más interna y subimos a la más e
 Aquí destacamos:
 
 - `stage:` En este _stage_ nos indica que está recorriendo un índice.
-- `seeks:` El número de busquedas es uno.
+- `seeks:` El número de búsquedas es uno.
 - `dupsTested:` El número de entradas duplicadas en el índice es cero.
 
 Vamos a por la fase siguiente (la superior).
@@ -288,7 +288,7 @@ Aquí destacamos: indicamos que hacemos un FETCH para traernos documentos, y exa
 
 Tener un índice que sólo tiene en cuenta un campo, y una consulta que justo sólo filtra por ese campo está muy bien para un ejemplo, pero en la vida real solemos tirar consultas más complejas, vamos a subir un nivel y ver que tal se porta esto ¿Será suficiente o tendremos que buscar una solución más elaborada?
 
-Vamos a empezar a jugar con diferentes combinaciones de consultas y ver como se portan esto índices de un sólo campo.
+Vamos a empezar a jugar con diferentes combinaciones de consultas y ver cómo se portan esto de índices de un sólo campo.
 
 ### Filtrando por más de un campo
 
@@ -304,7 +304,7 @@ db.movies.find({year: {$gte: 2010, $lte: 2015}}).explain("executionStats");
 
 - La consulta dura 7 milisegundos.
 - Realiza un _IXScan_ y después un _Fetch_
-- Se examenan 5970 claves y se devuelven 5970 documentos.
+- Se examinan 5970 claves y se devuelven 5970 documentos.
 - El rango de valores _indexBound_ es de 2010 a 2015
 
 ### Combinado con filtrado
@@ -353,7 +353,7 @@ db.movies.find({year: 2010, runtime: {$gt: 180}}).explain("executionStats");
 
 Ahora tenemos cosas interesantes:
 
-Por un lado ya hay _pelea_ de _índices_ Mongo se da cuenta de que podría usar más de un índice para resolver la consulta, y elige el que mejor rendimiento tiene, fijate en _winningPlan_ y _rejectedPlans_.
+Por un lado ya hay _pelea_ de _índices_ Mongo se da cuenta de que podría usar más de un índice para resolver la consulta, y elige el que mejor rendimiento tiene, fíjate en _winningPlan_ y _rejectedPlans_.
 
 Wining plan
 
@@ -375,7 +375,7 @@ db.movies.find({year: 2010, runtime: {$gt: 1}}).explain("executionStats");
 
 En este caso elije tirar por el índice de año, ya que nos da un subconjunto más pequeño de documentos.
 
-> MongoDB utiliza un optimizador e consultas ppara seleccionar el índice más adecuado para cada consulta y generar planes de ejecución posibles. Luego, selecciona el plan de ejecución más eficiente utilizando la estimación de coste para minimizar el número de operaciones de entrada salidas necesarias para la consulta.
+> MongoDB utiliza un optimizador de consultas para seleccionar el índice más adecuado para cada consulta y generar planes de ejecución posibles. Luego, selecciona el plan de ejecución más eficiente utilizando la estimación de coste para minimizar el número de operaciones de entrada salidas necesarias para la consulta.
 
 ¿Podemos forzar a mongo a elegir un índice? Si, con _hint_ vamos a decir que use el índice de duración.
 
@@ -395,7 +395,7 @@ Salvo que sepamos muy bien lo que estemos haciendo, no es recomendable usar _hin
 
 ¿Y por qué no se usan los dos índices? Buena pregunta, que opciones tenemos:
 
-- MongoDB puede utilizar intersección de indices, pero depende la consulta, y no siempre vas a tener mejor rendimiento.
+- MongoDB puede utilizar intersección de índices, pero depende de la consulta, y no siempre vas a tener mejor rendimiento.
 - Veremos más adelante que una práctica común es crear índices compuestos (es decir indexar por más de un campo), [según los chicos de MongoDB este tipo de índices son más eficientes que la intersección de índices](https://jira.mongodb.org/browse/SERVER-3071?focusedCommentId=508454&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-508454).
 
 #### Or
@@ -479,19 +479,17 @@ Esto devuelve un porrón de resultados, así que el planificador de _MongoDB_ pr
 
 #### Descendente
 
-Para terminar, si te fijas el indice de año es ascendente, ¿qué pasa si queremos ordenar por año de forma descendente?
+Para terminar, si te fijas el índice de año es ascendente, ¿qué pasa si queremos ordenar por año de forma descendente?
 
 ```bash
 db.movies.find({}).sort({year: -1}).explain("executionStats");
 ```
 
-Pues que se usa el índice, pero esta vez va en dirección contraría leyéndolo (_backward_), no nos hace falta crear un índica para descendente y otro ascendente en este caso.
+Pues que se usa el índice, pero esta vez va en dirección contraría leyéndolo (_backward_), no nos hace falta crear un índice para descendente y otro ascendente en este caso.
 
 ![Ahora el indice lo lee del final al principio](./media/12-index-backward.png)
 
 ### Strings, RegEx y Text Search
-
-\*\*\* TODO MANOLO
 
 Si queremos hacer búsquedas en un string nos podemos encontrar con sorpresas desagradables:
 
@@ -514,7 +512,7 @@ Vamos a buscar por un título exacto:
 db.movies.find({title: "Blade Runner"}).explain("executionStats");
 ```
 
-Que bien !
+¡Qué bien!
 
 Ahora vamos a buscar por una expresión regular, todas las pelis que empiecen por _star wars_:
 
@@ -522,7 +520,7 @@ Ahora vamos a buscar por una expresión regular, todas las pelis que empiecen po
 db.movies.find({title: /^Star Wars/}).explain("executionStats");
 ```
 
-Toma resultados !!
+¡¡Toma resultados!!
 
 Vale, pues ahora vamos a buscar por una expresión regular todas las pelis que contengan _wars_:
 
@@ -532,19 +530,15 @@ db.movies.find({title: /wars/}).explain("executionStats");
 
 Buf, vaya esto no va
 
-Vamos a hacer un drop de ese indice:
-
-```bash
-db.movies.dropIndex("title_1")
-```
-
-TODO: MANOLO Indices de texto, resumimos estos dos videos
-
-https://www.lemoncode.tv/curso/mongodb-indices/leccion/mongodb-indices-text-i
-
-https://www.lemoncode.tv/curso/mongodb-indices/leccion/mongodb-indices-text-ii
+Existen índices de tipo _text_ que nos permiten hacer búsquedas en strings, y un motor de búsqueda en el hosting de Mongo Atlas, pero esto lo cubriremos más adelante en este documento.
 
 ### Arrays
+
+Antes de nada vamos a volver a la base de datos de _mymovies_ para esto hacemos un _use_ de la base de datos:
+
+```bash
+use mymovies
+```
 
 ### Indices únicos
 
@@ -563,6 +557,19 @@ db.users.createIndex({email: 1}, {unique: true})
 ```
 
 Estos índices están más optimizados para búsquedas, pero si intentamos insertar un documento con un valor de email que ya existe, nos dará un error:
+
+```bash
+db.users.insertOne({
+  _id: ObjectId("60fd8cc6e8171ee4f3ad7681"),
+  name: "Eddard Stark",
+  email: "sean_bean@gameofthron.es",
+  password: "$2b$12$UREFwsRUoyF0CRqGNK0LzO0HM/jLhgUCNNIJ9RJAqMUQ74crlJ1Vu"
+})
+```
+
+Aquí tendríamos el error:
+
+![error al insertar un nuevo usuario con un correo que ya existe](./media/14-error-duplicate-email.png)
 
 ### Indices parciales
 
@@ -631,11 +638,11 @@ Aquí también tiramos de COLLSCAN
 
 # Multikey index, array fields in index
 
-Además de campos simples, podemos crear indices en campos array o subdocumentos.
+Además de campos simples, podemos crear índices en campos array o subdocumentos.
 
 Una limitación importante: sólo podemos indicar un campo de tipo array por índice (esto nos afectará cuando creemos campos compuestos).
 
-vamos a sacar un consulta en la que vamos a mostrar del campo genres (un array con generos) todos los generos distintos
+Vamos a sacar un consulta en la que vamos a mostrar del campo genres (un array con géneros) todos los géneros distintos
 
 ```bash
 db.movies.distinct("genres").sort()
@@ -707,8 +714,8 @@ Veamos las stats:
 - Se examinan sólo 26 keys.
 - Se hace un scan.
 - Me da un resultado por debajo del milisegundo.
-- ¡ No se hace fetch ! Los campos que devolvemos en la consulta ya están en el índice y no hay que ir a buscarlos, esto veremos que es una optimziación muy interesante cuando trabajemos con índices compuestos.
-- Y un ultimo tema fijate que ahora _isMultiKey_ aparece como _true y los \_multiKeysPath_ se indica que es el campo _genres_
+- ¡No se hace fetch! Los campos que devolvemos en la consulta ya están en el índice y no hay que ir a buscarlos, esto veremos que es una optimización muy interesante cuando trabajemos con índices compuestos.
+- Y un ultimo tema fíjate que ahora _isMultiKey_ aparece como _true_ y los _multiKeysPath_ se indica que es el campo _genres_
 
 Ahora vamos a hacer otra consulta, esta vez filtrar por las películas de ciencia ficción:
 
@@ -797,7 +804,7 @@ db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({year: 1}).explain("
 
 Vemos que ha tirado del índice y todo genial.
 
-¿Y si quisieramos que nos devolvieras las películas de ciencia ficción y ya está?
+¿Y si quisiéramos que nos devolvieras las películas de ciencia ficción y ya está?
 
 ```bash
 db.movies.find({genres: "Sci-Fi"}).explain("executionStats");
@@ -827,7 +834,7 @@ Y ¿Oye si tengo un índice por genres y year lo puedo aprovechar para hacer una
 db.movies.find({year: {$gte: 2010}}).explain("executionStats");
 ```
 
-Fijate que aquí hace un _COLLSCAN_ y no usa el índice, ¿Por qué? Porque el arbol del indice parte de _genres_, no hay forma de que salte enmedio.
+Fíjate que aquí hace un _COLLSCAN_ y no usa el índice, ¿Por qué? Porque el árbol del indice parte de _genres_, no hay forma de que salte en medio.
 
 Sin embargo si hacemos el siguiente índice:
 
@@ -843,9 +850,9 @@ db.movies.find({year: {$gte: 2010}}).explain("executionStats");
 
 ## Multikeys
 
-¿Que pasa si queremos usar un índice compuesto con campos arrays?
+¿Qué pasa si queremos usar un índice compuesto con campos arrays?
 
-Vamos a intentar crear un indice compuesto por dos campos arrays, genres y cast:
+Vamos a intentar crear un índice compuesto por dos campos arrays, _genres_ y _cast_:
 
 ```bash
 db.movies.createIndex({genres: 1, cast: 1});
@@ -863,7 +870,7 @@ Lo que si podemos hacer es crear un índice compuesto por un campo array y vario
 
 ESR son las siglas de **E**quality **S**ort **R**ange y es un consejo a la hora de ordenar los campos de un índice compuesto:
 
-- **Primero Equality:** es cuando comparamos algo con un resultado concreto (por ejemplo año es igual 2010), es una forma muy rápida de que el indice elija justo esas entradas.
+- **Primero Equality:** es cuando comparamos algo con un resultado concreto (por ejemplo año es igual 2010), es una forma muy rápida de que el índice elija justo esas entradas.
 - **Segundo Sort:** Si estamos ordenando la consulta por un campo en concreto, esta es nuestra segunda opción, ya hemos reducido el número de documentos que tenemos que ordenar con equality, vamos a aprovechar para ordenarlos.
 - **Tercero Consultas de rango:** En este tipo de consultas, pedimos valores que sean mayores que o menores que (por ejemplo, películas entre el 2010 y el 2015), aquí tenemos que acotar el rango lo máximo posible, MongoDB no puede hacer tirar de indices al resultado de tipo rango.
 
@@ -871,21 +878,21 @@ ESR son las siglas de **E**quality **S**ort **R**ange y es un consejo a la hora 
 
 Vamos a hacer una prueba:
 
-Borramos indices de la colección de movies por si acaso:
+Borramos índices de la colección de _movies_ por si acaso:
 
 ```bash
 db.movies.dropIndexes();
 ```
 
-Vamos a crear una consulta en la que queremos que nos devuelva las películas de ciencia ficción que se estrenaron después de 2010 y ordenadas por titulo:
+Vamos a crear una consulta en la que queremos que nos devuelva las películas de ciencia ficción que se estrenaron después de 2010 y ordenadas por título:
 
 ```bash
 db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}).sort({title: 1}).explain("executionStats");
 ```
 
-Sin indices, como siempre, un collscan como un castillo, recorre 23000 documentos y tarda 23 milisegundos.
+Sin índices, como siempre, un collscan como un castillo, recorre 23000 documentos y tarda 23 milisegundos.
 
-Vamos a crear un indice sin tener en cuenta ESR, por ejemplo por, año, titulo y genero:
+Vamos a crear un índice sin tener en cuenta ESR, por ejemplo por año, título y género:
 
 ```bash
 db.movies.createIndex({year: 1, title: 1, genres: 1});
@@ -903,8 +910,8 @@ Tenemos que ha tardado 24 milisegundos, devuelve 279 documentos, pero ha tenido 
 
 ¿Nos animamos a crear un índice siguiendo ESR?
 
-- El primero campo sería genero porque es un equality (voy al grando y reduzo elementos del tirón).
-- Después iría el sort por titulo (salimos del equality, y podemos aprovechar el indices para que haga un sort).
+- El primer campo sería género porque es un equality (voy al grano y reduzco elementos del tirón).
+- Después iría el sort por título (salimos del equality, y podemos aprovechar el índice para que haga un sort).
 - Y como paso final vamos a por el rango, que es el año (que el que da más vueltas para obtener los datos).
 
 ```bash
@@ -937,21 +944,21 @@ Si encima tuviéramos la suerte de que sólo nos hiciera falta los campos que es
 db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort({title: 1}).explain("executionStats");
 ```
 
-Aquí si te obtenemos un stage _PROJECTION_COVERED_ en vez de un _FETCH_ y el tiempo de ejecución se reduce a 3 milisegundo, no hemos tenido que ir a traernos los documentos, directamente con los campos del índice se pueden sacar.
+Aquí si te obtenemos un stage _PROJECTION_COVERED_ en vez de un _FETCH_ y el tiempo de ejecución se reduce a 3 milisegundos, no hemos tenido que ir a traernos los documentos, directamente con los campos del índice se pueden sacar.
 
-Cuando estás probando con varios indices no es mala idea jugar con _hint_ y forzar a que use un indice en concreto, para ver los resultaods completos del execution stats:
+Cuando estás probando con varios índices no es mala idea jugar con _hint_ y forzar a que use un indice en concreto, para ver los resultados completos del execution stats:
 
 ```bash
 db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort({title: 1}).hint({genres: 1, title: 1, year: 1}).explain("executionStats");
 ```
 
-# Borrando inidices
+# Borrando índices
 
 Ya hemos visto como borrar indices con DropIndex, lo malo de esta opción es que en un DataSet grande después tener que volver a armarlo se puede comer muchos recursos.
 
-Una opción interesnates es decir:
+Una opción interesante es decir:
 
-- Oye quiero que sigas manteniendo el indice.
+- Oye quiero que sigas manteniendo el índice.
 - Pero no quiero que lo uses en las consultas hasta próximo aviso.
 
 Esto lo podemos hacer con _HideIndex_
@@ -964,18 +971,440 @@ db.movies.hideIndex({genres: 1, title: 1, year: 1});
 
 ## TTL indexes
 
-\*\* TODO Antonio
+Hay situaciones en las que cuando insertamos documentos en una colección no queremos que perduren para siempre, por ejemplo si tratamos con datos de una sesión de usuario, o cachés, u otros elementos temporales.
+
+¿Cómo solíamos tratar esta casuística con otros motores de base de datos relacionales?
+
+- O bien haciendo procesos manuales de limpia cada X tiempo.
+- O bien teniendo demonios o triggers que se disparan cada X tiempo.
+
+¿Cómo podemos hacer esto con _MongoDb_? Utilizando los _Time To Leave Indexes_, también conocidos como índices _TTL_: la forma que tienen de funcionar es muy interesante, tú le añades a cada documento un campo fecha en el que le indicas cuando se creó el mismo, y después creas un índice en el que sobre ese campo fecha (timestamp), le das un tiempo de expiración en segundos (60 segundos, 1 hora, 48 horas... lo que mejor te venga).
+
+Veamos como funciona esto con un ejemplo.
+
+Crear una base de datos de prueba:
+
+```bash
+use miprueba
+```
+
+Vamos a crear una colección que llamaremos _sesiones_
+
+```bash
+db.createCollection('sesiones');
+```
+
+Definimos un _Time To Leave Index_, y le indicamos al motor de _mongo_ que esa colección va a tener un campo que lo llamaremos _fechaCreacion_ y que periódicamente, chequee y borre los documentos que hayan expirado, es decir borrar si: fecha hora actual < fechaCreación + 10 segundos.
+
+```bash
+db.sesiones.createIndex({ fechaCreacion: 1 }, { expireAfterSeconds: 10 });
+```
+
+Vamos a probar que esto funciona, insertamos una entrada, y utilizando
+_new Date()_ le indicamos que en _fechaCreacion_ guarde la fecha y hora
+actual.
+
+```js
+db.sesiones.insertOne({
+  fechaCreacion: new Date(),
+  datos: "Prueba de contenido A",
+});
+
+Si le echamos un ojo rápido, podemos ver que el documento sigue existiendo:
+
+```js
+db.sesiones.find({});
+```
+
+Si esperamos justo los 10 segundos y ejecutamos otra vez la consulta puede ser que sigamos viendo el documento, _¿qué pasa aquí?_ MongoDb lanza cada 60 segundos un proceso interno que es el que recorre los índices TTL y se pone a borrar los documentos que hayan caducado, además, esto también puede tardar un poco más dependiendo de la carga que tenga el servidor en ese momento, esto no suele ser problema ya que lo normal es que manejemos tiempos de expiración más elevados (por ejemplo una sesión suele durar mínimo 30 minutos).
+
+Vamos a probar si Mongo ha hecho su trabajo, volvemos a ejecutar el _find_ y vemos que ya el documento no esta:
+
+```js
+db.sesiones.find({});
+```
+
+Si te animas, puedes poner un tiempo de expiración más elevado y probar a insertar elementos en diferentes tiempos y comprobar como unos documentos se van borrando y otros se quedan dependiendo del timestamp que tenga cada campo fecha.
+
+Como curiosidad, otra forma interesante de gestionar la expiración en los indices TTL es crearlos con un tiempo de expiración de 0 segundos y directamente estableciendo en cada documento la fecha de expiración a futuro, así cuando se llegue a dicha fecha/hora el demonio de MongoDb lo eliminará.
 
 ## Text Indexes
 
-\*\* TODO Antonio Tenemos material de Videos Lemon Tv y después tenemos que comentar de GastroCarta como ajustamos las busquedas para que no le diera peso a la le lo una... y el problema con los hiatos, _cervercería_ y _cerveceria_
+Cómo comentamos en un apartado de _String, RegEx y Text Search_, vamos a ver como tratar los índices de tipo _text_ en MongoDb, los cuales nos permiten realizar búsquedas de texto en campos de tipo _string_. Para ello vamos a utilizar el dataset de _mymovies_ que ya hemos utilizado en otros apartados.
 
-Aquí comentaremos que si trabajas con ATLAS ellos ofrecen un sistema de indexado basado en Apache Lucene, que es para evitar que tengas que sacar tu datos a un Algolia o un ElasticSearch, pero ojo que ya es para clusters dedicados y depende del número de clusters que tengas puedes crear más o menos índices (en una M0 uno sólo, más info: https://www.mongodb.com/community/forums/t/mongodb-atlas-search-indexes-performance-as-compared-to-a-local-mongo-instance/207225)
+```bash
+use mymovies
 
+Vamos a hacer un drop de los índices:
+
+```bash
+db.movies.dropIndexes()
+```
+
+Ahora vamos a crearnos un índice por el campo _title_, y le indicamos que es de tipo texto:
+
+```bash
+db.movies.createIndex({title: "text"})
+```
+
+Para aprovechar el índice tenemos que usar la función _$text_ y luego el operador _$search_, y le pasamos la cadena que queremos buscar,
+en este caso _wars_. Ejecutamos _executionsStats_ para ver el plan de ejecución:
+
+```bash
+db.movies.find({$text: {$search: "wars"}}).explain("executionStats");
+```
+
+Ahora sí, nos devuelve los resultados y vemos que ha utilizado para la consulta el índice _title_text_, examinó 125 documentos y la ejecución de la consulta duró 3 milisegundos.
+
+![Se ha realizado una consulta usando text search](./media/13-text-search.png)
+
+Los índices de búsquedas de texto son muy potentes, pero hay que conocer ciertos detalles de su
+funcionamiento, o puede que no nos arrojen los resultados que esperamos.
+
+En este ejemplo vamos a ver como obtener pesos de resultados de búsqueda, como excluir palabras,y como manejarnos en lenguaje castellano.
+
+### Pesos de resultados de búsqueda
+
+Vamos a crear una base de datos nueva que la llamaremos _clinica_, en ella tendremos una colección que se llamará _consultas_, esta colección tendrá un campo _diagnóstico_ que será de texto libre, y es donde el médico introduce el diagnóstico del paciente (ésto es sólo para practicar, lo ideal sería normalizar dicha información en la base de datos).
+
+Creamos la base de datos e insertamos unos datos de prueba:
+
+```bash
+use clinica
+```
+
+```js
+db.consultas.insertMany([
+  {
+    nombre: "Juan Perez",
+    especialidad: "general",
+    diagnostico: "Dolor abdominal, Fiebre alta, tos, posible caso de COVID",
+  },
+  {
+    nombre: "María Pelaez",
+    especialidad: "general",
+    diagnostico: "Tensión alta, posible episodio de ataque de ansiedad",
+  },
+  {
+    nombre: "Javier Garcia",
+    especialidad: "cardiología",
+    diagnostico: "Arritmias, acompañado de tensión alta",
+  },
+  {
+    nombre: "Manuel Gómez",
+    especialidad: "general",
+    diagnostico: "Fiebre alta, tos y mucosidades",
+  },
+]);
+```
+
+Vamos a crear un índice para el campo diagnóstico, como está en castellano, vamos a indicárselo en el _createIndex_, de esta manera, nos aseguramos que va a tratar bien los campos con tilde, caracteres especiales, identificar palabras que debe ignorar en una búsqueda como: a, de, con, ante, y...).
+
+```js
+db.consultas.createIndex(
+  { diagnostico: "text" },
+  { default_language: "spanish" }
+);
+```
+
+Ahora podemos buscar _tensión_ con o sin tilde y obtenemos resultados:
+
+```js
+db.consultas.find({ $text: { $search: "tensión" } });
+```
+
+```js
+db.consultas.find({ $text: { $search: "tension" } });
+```
+
+> Cabe mencionar que en el caso de que puedas tener campos con multiples idiomas, mongoDb te ofrece
+> la opción _language override_
+
+Otro tema muy interesante es evaluar el tipo de resultado que nos da esta búsqueda: lo que hace este _$text $search_ es buscar por palabras, es decir si buscamos _tensión alta_ nos podemos encontrar una sorpresa
+
+```js
+db.consultas.find(
+  { $text: { $search: "tension alta" } },
+  { nombre: 1, diagnostico: 1 }
+);
+```
+
+resultados
+
+```javascript
+[
+  {
+    _id: ObjectId("60fd4c5ce8171ee4f3ad7680"),
+    nombre: "Juan Perez",
+    diagnostico: "Fiebre alta, tos y mucosidades",
+  },
+  {
+    _id: ObjectId("60fd4c5ce8171ee4f3ad767f"),
+    nombre: "Javier Garcia",
+    diagnostico: "Arritmias, acompañado de tensión alta",
+  },
+  {
+    _id: ObjectId("60fd4c5ce8171ee4f3ad767e"),
+    nombre: "María Pelaez",
+    diagnostico: "Tensión alta, posible episodio de ataque de ansiedad",
+  },
+  {
+    _id: ObjectId("60fd4c5ce8171ee4f3ad767d"),
+    nombre: "Juan Perez",
+    diagnostico:
+      "Dolor abdominal, Fiebre alta, tos y falta de secrecciones nasales, posible caso de COVID",
+  },
+];
+```
+
+Resulta que también nos da como primer resultado _fiebre alta_ _¿Comooor?_ bueno resulta que _alta_ existe en esa entrada..., _ok_, aceptamos barco, pero yo quiero que aparezca primero tensión alta _¿Qué está pasando aquí?_ Que no le indicamos que ordene los resultados por relevancia,
+para hacer esto, _MongoDb_ le asigna a cada resultado de la consulta un peso, a más peso más palabras coinciden con lo que se está buscando, si ordenamos por relevancia podemos ver los resultados en el orden
+que esperamos, veamos como hacer ésto:
+
+Primero sacamos los pesos de relevancia, añadimos a la proyección de resultados un campo que llamaremos _score_ tiramos de los metadatos que nos da el índice de texto, en este caso el campo _textScore_.
+
+```js
+db.consultas.find(
+  { $text: { $search: "tension alta" } },
+  { nombre: 1, diagnostico: 1, score: { $meta: "textScore" } }
+);
+```
+
+Veamos los resultados:
+
+```javascript
+[
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7681"),
+    nombre: "Juan Perez",
+    diagnostico: "Dolor abdominal, Fiebre alta, tos, posible caso de COVID",
+    score: 0.5625,
+  },
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7682"),
+    nombre: "María Pelaez",
+    diagnostico: "Tensión alta, posible episodio de ataque de ansiedad",
+    score: 1.1666666666666667,
+  },
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7684"),
+    nombre: "Juan Perez",
+    diagnostico: "Fiebre alta, tos y mucosidades",
+    score: 0.625,
+  },
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7683"),
+    nombre: "Javier Garcia",
+    diagnostico: "Arritmias, acompañado de tensión alta",
+    score: 1.25,
+  },
+];
+```
+
+Esto empieza a tener sentido, _tensión alta_ tiene más peso que _fiebre alta_, ¿Y si ordenamos por ese campo?
+
+```js
+db.consultas.find(
+    { $text: { $search: "tensíon alta" } },
+    { nombre: 1, diagnostico: 1, score: { $meta: "textScore" } }
+  ).sort({ score: { $meta: "textScore" } });
+```
+
+Ahora si nos aparece arriba _tension alta_.
+
+```javascript
+[
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7683"),
+    nombre: "Javier Garcia",
+    diagnostico: "Arritmias, acompañado de tensión alta",
+    score: 1.25,
+  },
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7682"),
+    nombre: "María Pelaez",
+    diagnostico: "Tensión alta, posible episodio de ataque de ansiedad",
+    score: 1.1666666666666667,
+  },
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7684"),
+    nombre: "Juan Perez",
+    diagnostico: "Fiebre alta, tos y mucosidades",
+    score: 0.625,
+  },
+  {
+    _id: ObjectId("60fd8cc6e8171ee4f3ad7681"),
+    nombre: "Juan Perez",
+    diagnostico: "Dolor abdominal, Fiebre alta, tos, posible caso de COVID",
+    score: 0.5625,
+  },
+];
+```
+
+Aunque... si queremos buscar exactamente tensión alta ¿Por qué no indicarle
+que busque exactamente por ese substring?_, para hacer esto rodeamos el string _tensión alta_ entre comillas dobles.
+
+```js
+db.consultas.find(
+  { $text: { $search: '"tensión alta"' } },
+  { nombre: 1, diagnostico: 1 }
+);
+```
+
+Otra opción interesante que nos permite este tipo de búsquedas es la de omitir resultados que tengan ciertas palabras, ésto lo hacemos añadiendo como prefijo un menos a la palabra que queramos hacer que descarte el resultado, por ejemplo queremos buscar pacientes que hayan tenido fiebre, tos, pero no _mucosidades_, le añadimos un menos a _mucosidades_
+
+```js
+db.consultas.find(
+    { $text: { $search: "fiebre tos -mucosidades" } },
+    { nombre: 1, diagnostico: 1, score: { $meta: "textScore" } }
+  ).sort({ score: { $meta: "textScore" } });
+```
+
+Los índices _text_ son una herramienta muy potente, pero hay que saber bien
+cuando usarlos ya que:
+
+- Tiene un coste generarlos.
+- Pueden llegar a ocupar bastante memoria y disco duro.
+- Pueden hacer que las escrituras sean más lentas.
+
+### Ejemplo de pesos y lenguaje en Gastrocarta
+
+[Gastrocarta](https://www.gastrocarta.net/) es un portal dedicado a la gastronomía, que ofrece información sobre restaurantes, bares, cafeterías, etc. 
+
+En nuestro portal, tenemos un buscador que nos filtra los restaurantes por nombre, teléfono, dirección, etc. 
+
+Y nos surgía una problemática con los hiatos, y es que si buscábamos, por ejemplo, _Cervecería_ no nos aparecía ningún resultado, pero si buscábamos _Cerveceria_ sí que nos aparecían resultados, esto era debido a que en el índice de texto no se tienen en cuenta los acentos, y por lo tanto _Cervecería_ no es lo mismo que _Cerveceria_.
+
+Para solucionar esto, añadimos a la creación del índice _default_language: 'spanish'_, al especificarle el lenguaje, ya se tienen en cuenta los acentos, y por lo tanto _Cervecería_ es lo mismo que _Cerveceria_.
+
+También tuvimos en cuenta el orden de creación de los índices, para indicar cuáles eran los que tenían más peso en la búsqueda, por ejemplo, si buscamos _Cervecería_ nos aparecerán primero los resultados que tengan _Cervecería_ en el nombre, y luego los que tengan _Cervecería_ en la dirección, y por último los que tengan _Cervecería_ en descripción.
+
+```bash
+db.restaurantes.createIndex(
+  {
+    nombre: "text",
+    direccion: "text",
+    descripcion: "text",
+  },
+  {
+    default_language: "spanish",
+    weights: {
+      nombre: 10,
+      direccion: 5,
+      descripcion: 1,
+    },
+  }
+);
+```
 # Wildcard Indexes
 
-\*\* De este tenemos un video en Lemon Tv, igual nos hace falta el data set de AirBnb mira a ver si te lo puedes traer y lo montamos en el Github que tenemos
+Hay casos, en los que no sabemos sobre que campos se van a realizar las búsquedas, y tenemos que dar un buen rendimiento desde el día cero, una opción que tenemos es ir creando índices campo por campo, ...mantener esto puede convertirse en algo pesado.
 
+_MongoDb_ a partir de la versión 4.2 nos ofrece los índices _WildCard_, que usando un carácter comodín (el asterisco) nos permite indicarle partir de que nivel en el documento cree índices para todos los campos.
+
+Veamos como funciona esto con un ejemplo:
+
+Trabajaremos sobre el juego de datos de ejemplo _AirBnb_, lo primero que vamos a hacer es borrar todo los índices para asegurarnos de que partimos limpios.
+
+```bash
+use airbnb
+```
+
+```js
+db.listingsAndReviews.dropIndexes();
+```
+Vamos trabajar con la colección _listingsAndReviews_ en concreto con el campo _reviews_score_, vemos que es un objeto que contiene 7 campos.
+
+![reviews score campos](./media/17-reviews_score.png)
+
+Este objeto tiene pinta de ser buen candidato para aplicar índices wildcard:
+
+- Es una puntuación por varios tópicos (puntualidad, limpieza, comunicación, emplazamiento...).
+- Es muy normal que no haya un patrón definido de búsqueda para estos campos.
+- Es buena idea tenerlos todos indexados por si acaso.
+
+Vamos a tirar un par de consultas y ver cómo se portan sin índices
+
+```javascript
+db.listingsAndReviews.find({
+  "review_scores.review_scores_location": { $gte: 9 },
+}).explain("executionStats");
+```
+
+```javascript
+db.listingsAndReviews.find({
+  "review_scores.review_scores_cleanliness": { $gte: 9 },
+}).explain("executionStats");
+```
+
+Tenemos el problema de siempre, tiramos de _colscan_ y recorremos todos los documentos.
+
+En vez de crear un índice por cada campo vamos a crear un _wildcard_ index:
+
+- Le indicamos que queremos aplicarlo a partir del nivel de _reviews_score_
+- Con el comodín _$\*\*_ le indicamos que cubra todos los campos de ese objeto.
+
+```js
+db.listingsAndReviews.createIndex({ "review_scores.$**": 1 });
+```
+
+Esto crea un índice por cada campo del objeto reviews_score, si ahora volvemos
+a lanzar las consultas
+
+```javascript
+db.listingsAndReviews.find({
+  "review_scores.review_scores_location": { $gte: 9 },
+}).explain("executionStats");
+```
+
+```javascript
+db.listingsAndReviews.find({
+  "review_scores.review_scores_cleanliness": { $gte: 9 },
+}).explain("executionStats");
+```
+
+Podemos ver que se están aplicando los índices y sólo recorremos los documentos que tienen una puntuación mayor que 9.
+
+¿Y qué pasa si el campo es de tipo array? podemos crear también un índice de este tipo, veamos por ejemplo el campo _reviews_
+
+![reviews, arrays de objetos  con opiniones](./media/18-reviews.png)
+
+Vamos a tirar un par de consultas y ver cómo se portan sin índices
+
+```javascript
+db.listingsAndReviews.find({
+  "reviews.date": { $gte: new Date("2019-03-03") },
+}).explain("executionStats");
+```
+
+```javascript
+db.listingsAndReviews.find({
+  "reviews.reviewer_name": "Matt",
+}).explain("executionStats");
+```
+
+Creamos un índice _wildcard_ que cubra todas las entradas de _reviews_:
+
+```js
+db.listingsAndReviews.createIndex({ "reviews.$**": 1 });
+```
+
+Ahora, si volvemos lanzar estás consultas podemos ver que los índices están
+creados para todos los campos del objeto _reviews_, y las consultas tiene mejor rendimiento.
+
+```javascript
+db.listingsAndReviews.find({
+  "reviews.date": { $gte: new Date("2019-03-03") },
+}).explain("executionStats");
+```
+
+```javascript
+db.listingsAndReviews.find({
+  "reviews.reviewer_name": "Matt",
+}).explain("executionStats");
+```
+
+Los índices _wildcard_ pueden ser de gran utilidad cuando no sabes a ciencia cierta sobre que va a filtrar el usuario, es un caso especial, no es un sustituto de los índices tradicionales, siempre tienes que estudiar el uso de tus datos, en algunas ocasiones puede ser mucho más útil un índice por múltiples campos que un _wildcard_.
 # ATLAS
 
 Si estás trabajando con el hosting oficial de Mongo (ATLAS), y tienes contratado un cluster (a partir de un M0), tienes un advisor para crear índices:
