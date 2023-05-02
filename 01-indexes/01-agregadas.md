@@ -1,8 +1,12 @@
 # Queries agregadas
 
+Aggregation optiomization
+https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/
+
+
 ## Consejos
 
-1. Project al final
+1. Project al final??
 
 2. $lookup, lo más tarde posible, antes filtrar
 
@@ -11,6 +15,50 @@
 4. Limit si lo podemos usar antes
 
 5. $skip cuanto antes
+
+# A base de ejemplos
+
+## Project al final
+
+__ Decir que mymovies
+
+Primera consulta
+
+```mql
+use("mymovies")
+
+db.movies
+ .aggregate([
+ { $match: { countries: "Spain" } },
+ { $project: { title: 1, countries: 1 } },
+ ]).explain("executionStats")
+```
+
+Cpomentar COLLSCAN, tiempo ejecucion, etc...
+
+Creamos un indice por countries
+
+___Comando aqui ( mongo compass)
+
+Vemos que se usa
+
+Cambiamos el orden
+
+```
+use("mymovies")
+
+db.movies
+ .aggregate([
+ { $project: { title: 1, countries: 1 } },
+ { $match: { countries: "Spain" } },
+ ]).explain("executionStats")
+```
+
+Comentar que no se usa el indice !! NOPES
+
+--> Braulio ver mejoras project en versiones modernas
+
+
 
 # Material
 
