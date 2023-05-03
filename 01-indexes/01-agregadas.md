@@ -3,7 +3,6 @@
 Aggregation optiomization
 https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/
 
-
 ## Consejos
 
 1. Project al final??
@@ -18,9 +17,67 @@ https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/
 
 # A base de ejemplos
 
+# Look up rendimiento
+
+--TODO
+
+Consulta
+
+```mql
+use("mymovies")
+
+db.movies.aggregate([
+  {
+    $lookup: {
+      from: "comments",
+      localField: "_id",
+      foreignField: "movie_id",
+      as: "comentarios",
+    },
+  },
+  {
+  $project: {
+    title: 1,
+    comentarios: 1,
+    year: 1,
+  },
+  },
+  {
+    $addFields: {
+    count: { $size: "$comentarios" },
+    },
+  },
+  {
+    $match: {
+     count: { $gt: 0 },
+    },
+  },
+ ]).explain("executionStats")
+```
+
+Comentar aquí ejecutar y ver que puede pasar
+
+\*\* Pantallazo stats si encuentras campo que diga COLLSCAN o similar, aquí por lop menos poner miliseconds
+
+Comenta que el problema esta en que:
+
+1. En este caso es un problema que se podía haber arreglado en fase de modelado, campo calculado comentarios cuanto (true/false).
+2. Al hacer un lookup estamos recorriendo sobre campo movie_id de comment y collscan
+3. Que podemos hacer: vamos a probar indice en comments.movie_id
+
+CreateIndex en comments de movie id
+
+Ejecutar
+
+Y poner useIndex y Miliseconds
+
+*** 
+
+Siguiente ejemplo una consulta con dos lookups, sin indices poner dos indices y ver si se usan los indices
+
 ## Project al final
 
-__ Decir que mymovies
+\_\_ Decir que mymovies
 
 Primera consulta
 
@@ -38,7 +95,7 @@ Cpomentar COLLSCAN, tiempo ejecucion, etc...
 
 Creamos un indice por countries
 
-___Comando aqui ( mongo compass)
+\_\_\_Comando aqui ( mongo compass)
 
 Vemos que se usa
 
@@ -57,8 +114,6 @@ db.movies
 Comentar que no se usa el indice !! NOPES
 
 --> Braulio ver mejoras project en versiones modernas
-
-
 
 # Material
 
