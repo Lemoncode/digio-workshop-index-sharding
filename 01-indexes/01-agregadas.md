@@ -19,9 +19,9 @@ https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/
 
 # Look up rendimiento
 
---TODO
+Vamos a hacer ahora un consulta en la que vamos a hacer un lookup, y vamos a ver que pasa con el rendimiento, y como podemos mejorarlo.
 
-Consulta
+Esta sería la consulta:
 
 ```mql
 use("mymovies")
@@ -55,19 +55,21 @@ db.movies.aggregate([
  ]).explain("executionStats")
 ```
 
-Comentar aquí ejecutar y ver que puede pasar
+Vamos a ejecutar la query y a ver que pasa:
 
 \*\* Pantallazo stats si encuentras campo que diga COLLSCAN o similar, aquí por lop menos poner miliseconds
 
 Comenta que el problema esta en que:
 
-1. En este caso es un problema que se podía haber arreglado en fase de modelado, campo calculado comentarios cuanto (true/false).
-2. Al hacer un lookup estamos recorriendo sobre campo movie_id de comment y collscan
-3. Que podemos hacer: vamos a probar indice en comments.movie_id
+1. En este caso, es un problema que se podía haber arreglado en fase de modelado, agregando un campo calculado comentarios (true/false) en la colección de movies, y así no tener que hacer el lookup.
+2. Al hacer un lookup estamos recorriendo sobre campo movie_id de comment y tenemos un _collscan_ en comments, que es lo que nos esta matando el rendimiento.
+3. Que podemos hacer: vamos a probar crear un índice en la colección de comments, sobre el campo movie_id, y vamos a ver que pasa.
 
-CreateIndex en comments de movie id
+```mql
+db.comments.createIndex({ movie_id: 1 });
+```
 
-Ejecutar
+Volvemos a ejecutar la query y vemos que pasa:
 
 Y poner useIndex y Miliseconds
 
