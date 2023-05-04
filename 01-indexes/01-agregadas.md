@@ -204,6 +204,15 @@ Y volvemos a lanzar la consulta.
 
 Podemos ver que ha bajado el tiempo, y ¡ utiliza los dos índices !
 
+# Más temas a tener en cuenta
+
+- Cuando lanzamos consultas agregadas que mueven muchos datos (limite de 100 Mb), el servidor puede devolver un error de memoria, para evitar esto, podemos usar el parámetro _allowDiskUse_ que permite que se escriban los datos en disco (ojo qu hay operadores que no lo soportan, addToSet, push...), aunque lo normal es que esto sea un _mal olor_ (** comprobar mongo oficial**).
+
+- Cuidado que los indices se pueden perder cuando usamos $project, $group, $unwind, así que antes usemos lo que tenga indices (match, sorting...) y después usemos $project
+
+- ??? Una vez que hemos hecho el match, utilicemos $project para reducir al mínimo el número de campos que vayan a pasar por la tuberia.
+
+https://www.youtube.com/watch?v=trEGalB0EZM&ab_channel=codedamn
 
 # Material
 
@@ -211,7 +220,7 @@ Enlaces de interés:
 
 - [Cómo funciona el optimizador de consulta de MongoDB](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/)
 
-- 
+-
 
 Material interesante: https://medium.com/mongodb-performance-tuning/optimizing-the-order-of-aggregation-pipelines-44c7e3f4d5dd
 
@@ -234,5 +243,3 @@ https://stackoverflow.com/questions/62368259/mongo-aggregate-query-optimization
 Este es mas normalito
 
 http://oracleappshelp.com/mongodb-aggregation-pipeline-optimization/
-
-
