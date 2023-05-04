@@ -37,7 +37,50 @@ Pues que MongoDb trae un optimizador de consultas agregadas, que se encarga de r
 
 Mira este post oficial sobre el [optimizador de consultas agregadas](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/)
 
-# Ejemplos
+# Ejemplos 1 - ¿Buenas prácticas o optimizer?
+
+Vamos a pedir en una consulta agregada, las películas que se estrenaron en el año 2014, vamos a realizar un _$project_ con un campo calculado, y vamos a añadir después un adicional .
+
+Vamos a hacerlo bien (el $match primero).
+
+```mql
+db.movies
+ .aggregate([
+  {$match: {year: 2014, countries: "Spain"}},
+  {$project: {title: 1, year: 1, countries: 1,
+    avgYear: {$avg: ["$duration", "$year"]}}},
+ ], {explain: true})
+```
+
+Vamos a hacerlo _mal_ (el $match de paises después).
+
+```mql
+db.movies
+ .aggregate([
+  {$match: {year: 2014}},
+  {$project: {title: 1, year: 1, countries: 1,
+    avgYear: {$avg: ["$duration", "$year"]}}},
+
+  {$match: { countries: "Spain"} }
+ ], {explain: true})
+```
+
+Vemos que da igual que en la query pongamos el $match antes o después, el optimizer se encarga de reordenar las etapas para que vaya lo más rápido posible.
+
+Y vamos a darle una vuelta de tuerca más, vamos forzar un match contra el campo calculado:
+
+```mql
+db.movies
+ .aggregate([
+  {$match: {year: 2014}},
+  {$project: {title: 1, year: 1, countries: 1,
+    avgYear: {$avg: ["$duration", "$year"]}}},
+
+  {$match: { countries: "Spain", avgYear: 2014} }
+ ], {explain: true})
+```
+
+Aquí sube la parte del match de _countries_
 
 ## Ejemplo 2 - El $lookup de la muerte
 
@@ -159,51 +202,16 @@ db.movies.createIndex({ year: 1 });
 
 Y volvemos a lanzar la consulta.
 
-Podemos ver que ha bajado el tiempo, y utiliza los dos índices.
+Podemos ver que ha bajado el tiempo, y ¡ utiliza los dos índices !
 
----
-
-## Project al final
-
-\_\_ Decir que mymovies
-
-Primera consulta
-
-```mql
-use("mymovies")
-
-db.movies
- .aggregate([
- { $match: { countries: "Spain" } },
- { $project: { title: 1, countries: 1 } },
- ]).explain("executionStats")
-```
-
-Cpomentar COLLSCAN, tiempo ejecucion, etc...
-
-Creamos un indice por countries
-
-\_\_\_Comando aqui ( mongo compass)
-
-Vemos que se usa
-
-Cambiamos el orden
-
-```
-use("mymovies")
-
-db.movies
- .aggregate([
- { $project: { title: 1, countries: 1 } },
- { $match: { countries: "Spain" } },
- ]).explain("executionStats")
-```
-
-Comentar que no se usa el indice !! NOPES
-
---> Braulio ver mejoras project en versiones modernas
 
 # Material
+
+Enlaces de interés:
+
+- [Cómo funciona el optimizador de consulta de MongoDB](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/)
+
+- 
 
 Material interesante: https://medium.com/mongodb-performance-tuning/optimizing-the-order-of-aggregation-pipelines-44c7e3f4d5dd
 
@@ -227,6 +235,4 @@ Este es mas normalito
 
 http://oracleappshelp.com/mongodb-aggregation-pipeline-optimization/
 
-Este se ve raro
 
-https://github.com/mongodb/docs/blob/master/source/core/aggregation-pipeline-optimization.txt
