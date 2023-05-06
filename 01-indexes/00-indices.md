@@ -1086,9 +1086,9 @@ Como curiosidad, otra forma interesante de gestionar la expiración en los índi
 
 Cómo comentamos en un apartado de _String, RegEx y Text Search_, vamos a ver cómo tratar los índices de tipo _text_ en MongoDb, los cuales nos permiten realizar búsquedas de texto en campos de tipo _string_. Para ello vamos a utilizar el dataset de _mymovies_ que ya hemos utilizado en otros apartados.
 
-````bash
+```bash
 use mymovies
-````
+```
 
 Vamos a hacer un drop de los índices:
 
@@ -1159,7 +1159,7 @@ use("clinica");
 
 db.consultas.createIndex(
   { diagnostico: "text" },
-  { defaultLanguage: "es"}
+  { defaultLanguage: "spanish"}
 );
 ```
 
@@ -1201,16 +1201,12 @@ use("clinica");
 db.consultas.dropIndex("diagnostico_text");
 ```
 
+Y crearlo sin indicar _default_language_
+
 ```js
 use("clinica");
 
-db.consultas.createIndex(
-  { diagnostico: "text" },
-  {
-    defaultLanguage: "es",
-    textIndexVersion: 3,
-  }
-);
+db.consultas.createIndex({ diagnostico: "text" });
 ```
 
 Y ahora en la query
@@ -1229,10 +1225,12 @@ use("clinica");
 db.consultas.find({
   $text: {
     $search: "enfermeria",
-    $diacriticSensitive: false,
   },
 });
 ```
+
+Si funciona... (es bastante rato, incluso _$diacriticSensitive: false_, es algo que no funciona muy bien
+)
 
 Otro tema muy interesante es evaluar el tipo de resultado que nos da esta búsqueda: lo que hace este _$text $search_ es buscar por palabras, es decir si buscamos _tensión alta_ nos podemos encontrar una sorpresa
 
@@ -1271,9 +1269,7 @@ resultados
 ];
 ```
 
-Resulta que también nos da como primer resultado _fiebre alta_ _¿Comooor?_ bueno resulta que _alta_ existe en esa entrada..., _ok_, aceptamos barco, pero yo quiero que aparezca primero tensión alta _¿Qué está pasando aquí?_ Que no le indicamos que ordene los resultados por relevancia,
-para hacer esto, _MongoDb_ le asigna a cada resultado de la consulta un peso, a más peso más palabras coinciden con lo que se está buscando, si ordenamos por relevancia podemos ver los resultados en el orden
-que esperamos, veamos cómo hacer ésto:
+Resulta que también nos da como primer resultado _fiebre alta_ _¿Comooor?_ bueno resulta que _alta_ existe en esa entrada..., _ok_, aceptamos barco, pero yo quiero que aparezca primero tensión alta _¿Qué está pasando aquí?_ Que no le indicamos que ordene los resultados por relevancia,para hacer esto, _MongoDb_ le asigna a cada resultado de la consulta un peso, a más peso más palabras coinciden con lo que se está buscando, si ordenamos por relevancia podemos ver los resultados en el orden que esperamos, veamos cómo hacer ésto:
 
 Primero sacamos los pesos de relevancia, añadimos a la proyección de resultados un campo que llamaremos _score_ tiramos de los metadatos que nos da el índice de texto, en este caso el campo _textScore_.
 
@@ -1357,8 +1353,7 @@ Ahora si nos aparece arriba _tension alta_.
 ];
 ```
 
-Aunque... si queremos buscar exactamente tensión alta ¿Por qué no indicarle
-que busque exactamente por ese substring?_, para hacer esto rodeamos el string \_tensión alta_ entre comillas dobles.
+Aunque... si queremos buscar exactamente tensión alta ¿Por qué no indicarle que busque exactamente por ese substring?_, para hacer esto rodeamos el string \_tensión alta_ entre comillas dobles.
 
 ```js
 db.consultas.find(
