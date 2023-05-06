@@ -1004,7 +1004,7 @@ Vamos a probar que esto funciona, insertamos una entrada, y utilizando
 _new Date()_ le indicamos que en _fechaCreacion_ guarde la fecha y hora
 actual.
 
-```js
+````js
 db.sesiones.insertOne({
   fechaCreacion: new Date(),
   datos: "Prueba de contenido A",
@@ -1014,7 +1014,7 @@ Si le echamos un ojo rápido, podemos ver que el documento sigue existiendo:
 
 ```js
 db.sesiones.find({});
-```
+````
 
 Si esperamos justo los 10 segundos y ejecutamos otra vez la consulta puede ser que sigamos viendo el documento, _¿qué pasa aquí?_ MongoDb lanza cada 60 segundos un proceso interno que es el que recorre los índices TTL y se pone a borrar los documentos que hayan caducado, además, esto también puede tardar un poco más dependiendo de la carga que tenga el servidor en ese momento, esto no suele ser problema ya que lo normal es que manejemos tiempos de expiración más elevados (por ejemplo, una sesión suele durar mínimo 30 minutos).
 
@@ -1032,14 +1032,14 @@ Como curiosidad, otra forma interesante de gestionar la expiración en los índi
 
 Cómo comentamos en un apartado de _String, RegEx y Text Search_, vamos a ver cómo tratar los índices de tipo _text_ en MongoDb, los cuales nos permiten realizar búsquedas de texto en campos de tipo _string_. Para ello vamos a utilizar el dataset de _mymovies_ que ya hemos utilizado en otros apartados.
 
-```bash
+````bash
 use mymovies
 
 Vamos a hacer un drop de los índices:
 
 ```bash
 db.movies.dropIndexes()
-```
+````
 
 Ahora vamos a crearnos un índice por el campo _title_, y le indicamos que es de tipo texto:
 
@@ -1204,10 +1204,12 @@ Veamos los resultados:
 Esto empieza a tener sentido, _tensión alta_ tiene más peso que _fiebre alta_, ¿Y si ordenamos por ese campo?
 
 ```js
-db.consultas.find(
+db.consultas
+  .find(
     { $text: { $search: "tensíon alta" } },
     { nombre: 1, diagnostico: 1, score: { $meta: "textScore" } }
-  ).sort({ score: { $meta: "textScore" } });
+  )
+  .sort({ score: { $meta: "textScore" } });
 ```
 
 Ahora si nos aparece arriba _tension alta_.
@@ -1242,7 +1244,7 @@ Ahora si nos aparece arriba _tension alta_.
 ```
 
 Aunque... si queremos buscar exactamente tensión alta ¿Por qué no indicarle
-que busque exactamente por ese substring?_, para hacer esto rodeamos el string _tensión alta_ entre comillas dobles.
+que busque exactamente por ese substring?_, para hacer esto rodeamos el string \_tensión alta_ entre comillas dobles.
 
 ```js
 db.consultas.find(
@@ -1254,10 +1256,12 @@ db.consultas.find(
 Otra opción interesante que nos permite este tipo de búsquedas es la de omitir resultados que tengan ciertas palabras, ésto lo hacemos añadiendo como prefijo un menos a la palabra que queramos hacer que descarte el resultado, por ejemplo, queremos buscar pacientes que hayan tenido fiebre, tos, pero no _mucosidades_, le añadimos un menos a _mucosidades_
 
 ```js
-db.consultas.find(
+db.consultas
+  .find(
     { $text: { $search: "fiebre tos -mucosidades" } },
     { nombre: 1, diagnostico: 1, score: { $meta: "textScore" } }
-  ).sort({ score: { $meta: "textScore" } });
+  )
+  .sort({ score: { $meta: "textScore" } });
 ```
 
 Los índices _text_ son una herramienta muy potente, pero hay que saber bien
@@ -1269,9 +1273,9 @@ cuando usarlos ya que:
 
 ### Ejemplo de pesos y lenguaje en Gastrocarta
 
-[Gastrocarta](https://www.gastrocarta.net/) es un portal dedicado a la gastronomía, que ofrece información sobre restaurantes, bares, cafeterías, etc. 
+[Gastrocarta](https://www.gastrocarta.net/) es un portal dedicado a la gastronomía, que ofrece información sobre restaurantes, bares, cafeterías, etc.
 
-En nuestro portal, tenemos un buscador que nos filtra los restaurantes por nombre, teléfono, dirección, etc. 
+En nuestro portal, tenemos un buscador que nos filtra los restaurantes por nombre, teléfono, dirección, etc.
 
 Y nos surgía una problemática con los hiatos, y es qué si buscábamos, por ejemplo, _Cervecería_ no nos aparecía ningún resultado, pero si buscábamos _Cerveceria_ sí que nos aparecían resultados, esto era debido a que en el índice de texto no se tienen en cuenta los acentos, y por lo tanto _Cervecería_ no es lo mismo que _Cerveceria_.
 
@@ -1296,6 +1300,7 @@ db.restaurantes.createIndex(
   }
 );
 ```
+
 # Wildcard Indexes
 
 Hay casos, en los que no sabemos sobre que campos se van a realizar las búsquedas, y tenemos que dar un buen rendimiento desde el día cero, una opción que tenemos es ir creando índices campo por campo, ...mantener esto puede convertirse en algo pesado.
@@ -1313,6 +1318,7 @@ use airbnb
 ```js
 db.listingsAndReviews.dropIndexes();
 ```
+
 Vamos trabajar con la colección _listingsAndReviews_ en concreto con el campo _reviews_score_, vemos que es un objeto que contiene 7 campos.
 
 ![reviews score campos](./media/17-reviews_score.png)
@@ -1326,15 +1332,19 @@ Este objeto tiene pinta de ser buen candidato para aplicar índices wildcard:
 Vamos a tirar un par de consultas y ver cómo se portan sin índices
 
 ```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_location": { $gte: 9 },
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_location": { $gte: 9 },
+  })
+  .explain("executionStats");
 ```
 
 ```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_cleanliness": { $gte: 9 },
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_cleanliness": { $gte: 9 },
+  })
+  .explain("executionStats");
 ```
 
 Tenemos el problema de siempre, tiramos de _colscan_ y recorremos todos los documentos.
@@ -1352,15 +1362,19 @@ Esto crea un índice por cada campo del objeto reviews_score, si ahora volvemos
 a lanzar las consultas
 
 ```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_location": { $gte: 9 },
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_location": { $gte: 9 },
+  })
+  .explain("executionStats");
 ```
 
 ```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_cleanliness": { $gte: 9 },
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_cleanliness": { $gte: 9 },
+  })
+  .explain("executionStats");
 ```
 
 Podemos ver que se están aplicando los índices y sólo recorremos los documentos que tienen una puntuación mayor que 9.
@@ -1372,15 +1386,19 @@ Podemos ver que se están aplicando los índices y sólo recorremos los document
 Vamos a tirar un par de consultas y ver cómo se portan sin índices
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.date": { $gte: new Date("2019-03-03") },
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "reviews.date": { $gte: new Date("2019-03-03") },
+  })
+  .explain("executionStats");
 ```
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.reviewer_name": "Matt",
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "reviews.reviewer_name": "Matt",
+  })
+  .explain("executionStats");
 ```
 
 Creamos un índice _wildcard_ que cubra todas las entradas de _reviews_:
@@ -1393,18 +1411,23 @@ Ahora, si volvemos lanzar estás consultas podemos ver que los índices están
 creados para todos los campos del objeto _reviews_, y las consultas tiene mejor rendimiento.
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.date": { $gte: new Date("2019-03-03") },
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "reviews.date": { $gte: new Date("2019-03-03") },
+  })
+  .explain("executionStats");
 ```
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.reviewer_name": "Matt",
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "reviews.reviewer_name": "Matt",
+  })
+  .explain("executionStats");
 ```
 
 Los índices _wildcard_ pueden ser de gran utilidad cuando no sabes a ciencia cierta sobre que va a filtrar el usuario, es un caso especial, no es un sustituto de los índices tradicionales, siempre tienes que estudiar el uso de tus datos, en algunas ocasiones puede ser mucho más útil un índice por múltiples campos que un _wildcard_.
+
 # ATLAS
 
 Si estás trabajando con el hosting oficial de Mongo (ATLAS), y tienes contratado un cluster (a partir de un M0), tienes un advisor para crear índices:
@@ -1432,3 +1455,11 @@ db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort(
 ![La consulta, en compass tenemos que poner los campos por separados, ojo hay que darle a options para ver el sort y el project](./media/15-explain-plan-query.jpg)
 
 ![Aquí puedes ver de forma gráfica el explain de la query, pintas unas cajas, las une... si estás leyendo esto porque eres invidente creo que puede ser más accesible el JSON](./media/16-explain-plan-query.jpg)
+
+# Enlaces interesnates
+
+- [Aproximación indices ESR](https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/)
+
+- [Index intersection](https://www.mongodb.com/docs/manual/core/index-intersection)
+
+- [Crear indices en background](https://www.mongodb.com/docs/v3.0/tutorial/build-indexes-in-the-background/)

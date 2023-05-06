@@ -44,6 +44,8 @@ Vamos a pedir en una consulta agregada, las películas que se estrenaron en el a
 Vamos a hacerlo bien (el $match primero).
 
 ```mql
+use("mymovies");
+
 db.movies
  .aggregate([
   {$match: {year: 2014, countries: "Spain"}},
@@ -52,9 +54,13 @@ db.movies
  ], {explain: true})
 ```
 
+Vamos a ver el query planner, _parsedQuery_ y _executionMillis_
+
 Vamos a hacerlo _mal_ (el $match de paises después).
 
 ```mql
+use("mymovies");
+
 db.movies
  .aggregate([
   {$match: {year: 2014}},
@@ -65,11 +71,15 @@ db.movies
  ], {explain: true})
 ```
 
+Vamos a ver el query planner, _parsedQuery_ y _executionMillis_ (puede que incluso exection millis sea más bajo porque ya está precalenteada la caché)
+
 Vemos que da igual que en la query pongamos el $match antes o después, el optimizer se encarga de reordenar las etapas para que vaya lo más rápido posible.
 
 Y vamos a darle una vuelta de tuerca más, vamos forzar un match contra el campo calculado:
 
 ```mql
+use("mymovies");
+
 db.movies
  .aggregate([
   {$match: {year: 2014}},
@@ -84,7 +94,7 @@ Aquí sube la parte del match de _countries_
 
 ## Ejemplo 2 - El $lookup de la muerte
 
-Resulta que en la base de datos de movies, tenemos una colección de películas y otra de comentarios de películas,... sería buena idea mostrar las películas y sus comentarios... nada malo puede pasar ¿Verdad? probemos la siugiente consulta agregada:
+Resulta que en la base de datos de movies, tenemos una colección de películas y otra de comentarios de películas,... sería buena idea mostrar las películas y sus comentarios... nada malo puede pasar ¿Verdad? probemos la siguiente consulta agregada:
 
 ```
 use("mymovies")
@@ -122,9 +132,35 @@ Vamos a ejecutar la consulta y a ver que pasa:
 
 La consulta, con el explain, se queda colgada, y no termina nunca.
 
-¿Qué problema hay aquí? El lookup es muy costos, por cada película se pone a buscar los comentarios, y lo hace realizando un collscan por cada una de ellas, es decir en comentarios tenemos, que hay más de 50K comentarios.
+Si queremos ver algo de info, una opción es en el match poner un filtro, por ejemplo, que sea del año 1980:
 
-¿Qué podemos hacer para mejorar el rendimiento? Fijate que el lookup va de
+```diff
+  {
+    $match: {
++     year: 1980,
+     count: { $gt: 0 },
+    },
+  },
+```
+
+Fijate que curioso, que el optimizador de consultas sube _year_ arriba.
+
+Y mira aquí en el stage del _$lookup_ el _totalDocsExamined_ ¿8 millones de documentos :-@?
+
+```js
+    {
+      "$lookup": {
+        "from": "comments",
+        "as": "comentarios",
+        "localField": "_id",
+        "foreignField": "movie_id"
+      },
+      "totalDocsExamined": 8853328,
+```
+
+¿Qué problema hay aquí? El lookup es muy costoso, por cada película se pone a buscar los comentarios, y lo hace realizando un collscan por cada una de ellas, es decir en comentarios tenemos, que hay más de 50K comentarios.
+
+¿Qué podemos hacer para mejorar el rendimiento? Fíjate que el lookup va de
 
 movies.\_id --> comments.movie_id
 
@@ -202,7 +238,7 @@ db.movies.createIndex({ year: 1 });
 
 Y volvemos a lanzar la consulta.
 
-Podemos ver que ha bajado el tiempo, y ¡ utiliza los dos índices !
+Podemos ver que ha bajado el tiempo, y ¡ utiliza los dos índices ! (indexesUsed, en executionStats)
 
 # Más temas a tener en cuenta
 
@@ -210,9 +246,9 @@ Podemos ver que ha bajado el tiempo, y ¡ utiliza los dos índices !
 
 - Cuidado que los indices se pueden perder cuando usamos $project, $group, $unwind, así que antes usemos lo que tenga indices (match, sorting...) y después usemos $project
 
-- ??? Una vez que hemos hecho el match, utilicemos $project para reducir al mínimo el número de campos que vayan a pasar por la tuberia.
+- Una vez que hemos hecho el match, utilicemos $project para reducir al mínimo el número de campos que vayan a pasar por la tuberia.
 
-https://www.youtube.com/watch?v=trEGalB0EZM&ab_channel=codedamn
+
 
 # Material
 
@@ -220,7 +256,9 @@ Enlaces de interés:
 
 - [Cómo funciona el optimizador de consulta de MongoDB](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/)
 
--
+- [La importancia del modelado en Mongo (foro y empleado de MongoDB contestando)](https://www.mongodb.com/community/forums/t/multiple-lookup-in-aggregate/109436)
+
+- [Mongo Optimization tips](https://www.youtube.com/watch?v=trEGalB0EZM&ab_channel=codedamn)
 
 Material interesante: https://medium.com/mongodb-performance-tuning/optimizing-the-order-of-aggregation-pipelines-44c7e3f4d5dd
 
@@ -240,6 +278,3 @@ Muy bueno este caso real
 
 https://stackoverflow.com/questions/62368259/mongo-aggregate-query-optimization
 
-Este es mas normalito
-
-http://oracleappshelp.com/mongodb-aggregation-pipeline-optimization/
