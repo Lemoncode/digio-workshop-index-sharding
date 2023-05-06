@@ -70,6 +70,12 @@ Y vamos a ver los índices que tenemos en la colección de _movies_:
 db.movies.getIndexes()
 ```
 
+Si ya tenemos indices creados y queremos partir en limpio (sin cargarnos el indice sobre el campo _\_id_):
+
+```bash
+db.movies.dropIndexes()
+```
+
 # Hola My Movies
 
 Vamos a arrancarnos por los índices a aplicar a un campo simple.
@@ -109,13 +115,13 @@ Si te fijas esto ha dado una respuesta relativamente rápida ¿Por qué?
 - No hay bala de plata, todo depende mucho de número de elementos, la de veces que se ejecute una consulta (no es lo mismo un sysadmin que ejecute una consulta al mes que tarde 5 segundos, que 200 usuarios concurrente ejecutando una consulta con diferentes valores que tarde 2 segundos).
 - Si una colección tiene menos de 1000 elementos y la consulta es simple un índice igual no aporta demasiado.
 - Si la colección es grande (por ejemplo, más de 10,000 documentos) y la consulta implica filtrar, ordenar o agrupar documentos basados en ciertos campos, es probable que se necesite un índice para mejorar el rendimiento de la consulta.
-- Por otro lado, tenemos que prever como va creciendo nuestra base de datos, crear un índice desde cero en una colección enorme tiene su coste.
+- Por otro lado, tenemos que prever como va creciendo nuestra base de datos, crear un índice desde cero en una colección enorme tiene su coste (aunque se puede lanzar en background).
 - Una buena forma de ver si una consulta puede dar problemas es utilizar el comando _explain_ de Mongo (esto lo veremos en breve).
 - En Mongo Atlas (Mongo siempre te va a empujar a que lo uses), tienes un Performance Advisor que te da recomendaciones en base a tu uso, existen opciones para deployments custom pero $$$:
   - [Mongo Ops Manager](https://www.mongodb.com/es/products/ops-manager)
   - [Solar Winds](https://www.solarwinds.com/database-performance-monitor)
   - [Studio T3](https://studio3t.com/)
-- Si te vas a Mongo Atlas, recibes un aviso cuando una consulta tiene que escanear más de mil documentos.
+- Si te vas a Mongo Atlas, puedes recibir un aviso cuando una consulta tiene que escanear más de mil documentos.
 
 # Índices simples
 
@@ -337,7 +343,7 @@ Tenemos que:
 
 ¿Qué pasaría si creamos un índice por la duración?
 
-> Una nota sobre los índices, ojo un índice trae cuenta cuando hay un buen número de clase, por ejemplo, crear un índice sobre un campo booleano tendría sentido, ya que sólo tendríamos dos valores indexados.
+> Una nota sobre los índices, ojo un índice trae cuenta cuando hay un buen número de entradas diferentes (cardinalidad), crear un índice sobre un campo booleano no tendría sentido, ya que sólo tendríamos dos valores indexados.
 
 Vamos a crear un índice por la duración:
 
@@ -398,7 +404,7 @@ Salvo que sepamos muy bien lo que estemos haciendo, no es recomendable usar _hin
 - MongoDB puede utilizar intersección de índices, pero depende de la consulta, y no siempre vas a tener mejor rendimiento.
 - Veremos más adelante que una práctica común es crear índices compuestos (es decir indexar por más de un campo), [según los chicos de MongoDB este tipo de índices son más eficientes que la intersección de índices](https://jira.mongodb.org/browse/SERVER-3071?focusedCommentId=508454&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-508454).
 
-#### Or
+#### Consulta con Or
 
 Vamos a probar ahora a hacer una _or_ con dos condiciones, por ejemplo, que la película sea de 2010 o que la duración sea mayor de 180 minutos.
 
@@ -419,7 +425,7 @@ Aquí si tenemos un resultado interesante, al ser una OR:
 
 Vamos ahora a jugar con la ordenación.
 
-#### Ascendente
+### Ordenación Ascendente
 
 ¿Qué pasa si queremos ordenar por año de forma ascendente?
 
@@ -441,6 +447,18 @@ db.movies.find({}).sort({year: 1}).explain("executionStats");
 
 Aquí volvemos a nuestro amigo _COLLSCAN_ y tenemos que la operación tarda 53 Ms (executionTimeMillisEstimate).
 
+Por otro lado la ordenación se hace en memoria:
+
+```js
+winningPlan: {
+  stage: 'SORT',
+  sortPattern: { year: 1 },
+  memLimit: 104857600,
+  type: 'simple',
+  inputStage: { stage: 'COLLSCAN', direction: 'forward' }
+},
+```
+
 Vamos a volver a crear el índice y ver si mejoramos algo los resultados.
 
 ```bash
@@ -459,11 +477,19 @@ Si nos fijamos aquí tenemos:
 
 ¿Y si combinamos duración y ordenar por año?
 
+Vamos a asegurarnos primero que tenemos los dos indices:
+
+```bash
+db.movies.getIndexes()
+```
+
+Y ejecutamos el comando
+
 ```bash
 db.movies.find({runtime: {$gt: 180}}).sort({year: 1}).explain("executionStats");
 ```
 
-En tu caso, es probable el índice de duración se usa como el índice principal en la consulta porque el criterio de búsqueda por duración tiene una mayor selectividad que el criterio de búsqueda por año de publicación. Como resultado, MongoDB puede optar por usar el índice de duración para filtrar los documentos y luego ordenarlos en memoria.
+En este caso, es probable el índice de duración se usa como el índice principal en la consulta porque el criterio de búsqueda por duración tiene una mayor selectividad que el criterio de búsqueda por año de publicación. Como resultado, MongoDB puede optar por usar el índice de duración para filtrar los documentos y luego ordenarlos en memoria.
 
 ![En este caso aplica el otro indice y decide ordenar en memoria](./media/10-in-memory.jpg)
 
@@ -525,20 +551,14 @@ db.movies.find({title: /^Star Wars/}).explain("executionStats");
 Vale, pues ahora vamos a buscar por una expresión regular todas las pelis que contengan _wars_:
 
 ```bash
-db.movies.find({title: /wars/}).explain("executionStats");
+db.movies.find({title: /Wars/}).explain("executionStats");
 ```
 
-Buf, vaya esto no va
+Bueno, usa el índice pero... a fin de cuentas recorre las 23000 keys :-@
 
 Existen índices de tipo _text_ que nos permiten hacer búsquedas en strings, y un motor de búsqueda en el hosting de Mongo Atlas, pero esto lo cubriremos más adelante.
 
 ### Arrays
-
-Antes de nada, vamos a volver a la base de datos de _mymovies_ para esto hacemos un _use_ de la base de datos:
-
-```bash
-use mymovies
-```
 
 ### Indices únicos
 
