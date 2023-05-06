@@ -1062,6 +1062,7 @@ db.sesiones.insertOne({
   fechaCreacion: new Date(),
   datos: "Prueba de contenido A",
 });
+```
 
 Si le echamos un ojo rápido, podemos ver que el documento sigue existiendo:
 
@@ -1111,12 +1112,13 @@ Ahora sí, nos devuelve los resultados y vemos que ha utilizado para la consulta
 
 ![Se ha realizado una consulta usando text search](./media/13-text-search.png)
 
-Los índices de búsquedas de texto son muy potentes, pero hay que conocer ciertos detalles de su
-funcionamiento, o puede que no nos arrojen los resultados que esperamos.
+Los índices de búsquedas de texto son muy potentes, pero hay que conocer ciertos detalles de su funcionamiento, o puede que no nos arrojen los resultados que esperamos.
 
 En este ejemplo vamos a ver cómo obtener pesos de resultados de búsqueda, cómo excluir palabras, y cómo manejarnos en lenguaje castellano.
 
 ### Pesos de resultados de búsqueda
+
+Como aquí vamos a manejar comandos de varias lineas, mejor nos pasamos a VSCode.
 
 Vamos a crear una base de datos nueva que la llamaremos _clinica_, en ella tendremos una colección que se llamará _consultas_, esta colección tendrá un campo _diagnóstico_ que será de texto libre, y es donde el médico introduce el diagnóstico del paciente (esto es sólo para practicar, lo ideal sería normalizar dicha información en la base de datos).
 
