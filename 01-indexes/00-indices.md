@@ -1088,12 +1088,13 @@ Cómo comentamos en un apartado de _String, RegEx y Text Search_, vamos a ver c�
 
 ````bash
 use mymovies
+````
 
 Vamos a hacer un drop de los índices:
 
 ```bash
 db.movies.dropIndexes()
-````
+```
 
 Ahora vamos a crearnos un índice por el campo _title_, y le indicamos que es de tipo texto:
 
@@ -1124,11 +1125,9 @@ Vamos a crear una base de datos nueva que la llamaremos _clinica_, en ella tendr
 
 Creamos la base de datos e insertamos unos datos de prueba:
 
-```bash
-use clinica
-```
-
 ```js
+use("clinica");
+
 db.consultas.insertMany([
   {
     nombre: "Juan Perez",
@@ -1143,37 +1142,97 @@ db.consultas.insertMany([
   {
     nombre: "Javier Garcia",
     especialidad: "cardiología",
-    diagnostico: "Arritmias, acompañado de tensión alta",
+    diagnostico: "Arritmias, acompañado de tensión alta, enfermería",
   },
   {
     nombre: "Manuel Gómez",
     especialidad: "general",
-    diagnostico: "Fiebre alta, tos y mucosidades",
+    diagnostico: "Fiebre alta, tos y mucosidades, enfermería",
   },
 ]);
 ```
 
 Vamos a crear un índice para el campo diagnóstico, como está en castellano, vamos a indicárselo en el _createIndex_, de esta manera, nos aseguramos que va a tratar bien los campos con tilde, caracteres especiales, identificar palabras que debe ignorar en una búsqueda como: a, de, con, ante, y...).
 
-```js
+```
+use("clinica");
+
 db.consultas.createIndex(
   { diagnostico: "text" },
-  { default_language: "spanish" }
+  { defaultLanguage: "es"}
 );
 ```
 
 Ahora podemos buscar _tensión_ con o sin tilde y obtenemos resultados:
 
 ```js
+use("clinica");
 db.consultas.find({ $text: { $search: "tensión" } });
 ```
 
 ```js
+use("clinica");
 db.consultas.find({ $text: { $search: "tension" } });
 ```
 
 > Cabe mencionar que en el caso de que puedas tener campos con multiples idiomas, mongoDb te ofrece
 > la opción _language override_
+
+Antes de seguir vamos a enseñarte una cagada en Españo... no va bien con los hiatos :-@, vamos a buscar _enfermería_ con y sin tilde.
+
+```js
+use("clinica");
+db.consultas.find({ $text: { $search: "enfermería" } });
+```
+
+```js
+use("clinica");
+db.consultas.find({ $text: { $search: "enfermeria" } });
+```
+
+Este problema es conocido, digamos que los _fullTextSearch_ no se llevan demasiado bien con el español
+
+https://www.mongodb.com/community/forums/t/how-to-correctly-set-diacritic-insensitive-text-index-for-spanish-lang/221711/6
+
+Vamos a tirar el índice
+
+```js
+use("clinica");
+db.consultas.dropIndex("diagnostico_text");
+```
+
+```js
+use("clinica");
+
+db.consultas.createIndex(
+  { diagnostico: "text" },
+  {
+    defaultLanguage: "es",
+    textIndexVersion: 3,
+  }
+);
+```
+
+Y ahora en la query
+
+```js
+use("clinica");
+db.consultas.find({
+  $text: {
+    $search: "enfermeria",
+  },
+});
+```
+
+```js
+use("clinica");
+db.consultas.find({
+  $text: {
+    $search: "enfermeria",
+    $diacriticSensitive: false,
+  },
+});
+```
 
 Otro tema muy interesante es evaluar el tipo de resultado que nos da esta búsqueda: lo que hace este _$text $search_ es buscar por palabras, es decir si buscamos _tensión alta_ nos podemos encontrar una sorpresa
 
