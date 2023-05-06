@@ -10,7 +10,7 @@ Primeras reglas de perogrullo cuando me planteo usar un índice:
 
 - ¿Hay muchos datos?
 - ¿Hay consultas que se usan mucho y tardan en ejecutarse? Es decir, una consulta que tira un administrador de vez en cuando no nos debería de preocupar mucho.
-- ¿Cuánto estoy escribiendo datos?
+- ¿Cuantas escrituras tengo versus lecturas?
 
 ## ¿Cómo funcionan?
 
@@ -21,19 +21,19 @@ Es decir, si quiero buscar una palabra mejor que ir página por página, me voy 
 - Si no utilizo el índice tendría que ir página por página buscando, eso es lo que en Mongo lo llamamos hacer un _collection scan_ (COLLSCAN).
 - Si utilizo el índice, voy a la parte de atrás y me salto todas las páginas que no me interesan, esto es mucho más rápido, es lo que en Mongo llamamos un _index scan_ (IXSCAN), pero ojo:
   - Estoy pagando el pato de _añadir páginas al libro_
-  - Si el libro fuera online y estuviera vivo (el autor lo va actualizando), tendría que ir recalculando el índice cada vez que introdujera nuevas páginas (esto es lo que en Mongo se llama _reindexing_), y esto tiene un coste, lo podemos comparar con cuando un usuario introduce e
+  - Si el libro fuera online y estuviera vivo (el autor lo va actualizando), tendría que ir recalculando el índice cada vez que introdujera nuevas páginas (esto es lo que en Mongo se llama _reindexing_), y esto tiene un coste.
 
 Los índices en Mongo son como un árbol binario, donde cada nodo es un documento de la colección.
 
 ¿Se puede usar más de un índice en una consulta?
 
-- MongoDB soporta los XXXX en una consulta, pero normalmente no los usa ya que da peor rendimiento que un índice compuesto.
+- MongoDB soporta intersección de indices en una consulta, pero normalmente no los usa ya que da peor rendimiento que un índice compuesto.
 
-- Lo normal es que se use un sólo índice, a ser que tengamos una consulta con un OR que puede usar más de uno.
+- Lo normal es que se use un sólo índice, a no ser que tengamos una consulta con un OR que puede usar más de uno, o casos de una consulta agregada.
 
-¿Los índices son siempre igual de efectivos? No, si hacemos un matching exacto el índice es más efectivo que si hacemos una consulta por rango.
+¿Los índices son siempre igual de efectivos? No, si hacemos un matching exacto (por ejemplo dame las películas que se estrenaron en 2010) el índice es más efectivo que si hacemos una consulta por rango (por ejemplo, dame las películas que se estrenaron entre 2010 y 2015).
 
-Que campos, no tiene sentido un índice en un booleano, por ejemplo.
+¿Tiene sentido en todos los tipos de campo? NO, por ejemplo en un campo boolean es una tontería, ya que solo puede tener dos valores.
 
 ## Tipos de índices
 
