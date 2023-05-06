@@ -888,6 +888,23 @@ db.movies.find({year: {$gte: 2010}}).explain("executionStats");
 
 ¿Qué pasa si queremos usar un índice compuesto con campos arrays?
 
+Fijate en los campos _genres_ y _cast_, son dos arrays:
+
+```bash
+db.movies.find({});
+```
+
+```diff
++    genres: [ 'Comedy', 'Drama', 'Family' ],
+    runtime: 65,
++    cast: [
++      'Mary Pickford',
++      'Madlaine Traverse',
++      'Charles Wellesley',
++      'Gladys Fairbanks'
++    ],
+```
+
 Vamos a intentar crear un índice compuesto por dos campos arrays, _genres_ y _cast_:
 
 ```bash
@@ -900,7 +917,7 @@ MongoServerError: Index build failed: d4ecae56-e7ee-400b-94c4-5cbbeec78ae3: Coll
 
 Nos da un error, ¿Por qué? Porque no se puede crear un índice compuesto por dos campos arrays.
 
-Lo que si podemos hacer es crear un índice compuesto por un campo array y varios no array.
+Lo que si podemos hacer es crear un índice compuesto por un campo array y varios campos que no sean array.
 
 ## ESR
 
@@ -908,7 +925,7 @@ ESR son las siglas de **E**quality **S**ort **R**ange y es un consejo a la hora 
 
 - **Primero Equality:** es cuando comparamos algo con un resultado concreto (por ejemplo, año es igual 2010), es una forma muy rápida de que el índice elija justo esas entradas.
 - **Segundo Sort:** Si estamos ordenando la consulta por un campo en concreto, esta es nuestra segunda opción, ya hemos reducido el número de documentos que tenemos que ordenar con equality, vamos a aprovechar para ordenarlos.
-- **Tercero Consultas de rango:** En este tipo de consultas, pedimos valores que sean mayores que o menores que (por ejemplo, películas entre el 2010 y el 2015), aquí tenemos que acotar el rango lo máximo posible, MongoDB no puede hacer tirar de índices al resultado de tipo rango.
+- **Tercero Consultas de rango:** En este tipo de consultas, pedimos valores que sean mayores que o menores que (por ejemplo, películas entre el 2010 y el 2015), aquí tenemos que acotar el rango lo máximo posible, y aplicar indices aquí no es tan efectivo como en los dos casos anteriores.
 
 [Más informacíon al respecto sobre ESR](https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/)
 
