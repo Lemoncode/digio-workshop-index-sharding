@@ -848,7 +848,7 @@ db.movies.find({genres: "Sci-Fi"}).explain("executionStats");
 
 ¡Usa el índice ! Esto es porque el índice empieza por _sci-fi_ entonces es capaz de usarlo (corta y no usa el resto).
 
-Vale, vamos a seguir probando, ¿Si quiero las películas de ciencia ficción y ordenadas por año?
+Vale, vamos a seguir probando, ¿Si quiero las películas de ciencia ficción y ordenadas por año? (Recordemos que el índice es compuesto por genres, year y title)
 
 ```bash
 db.movies.find({genres: "Sci-Fi"}).sort({year: 1}).explain("executionStats");
