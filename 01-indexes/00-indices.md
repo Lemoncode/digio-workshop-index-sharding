@@ -558,8 +558,6 @@ Bueno, usa el índice pero... a fin de cuentas recorre las 23000 keys :-@
 
 Existen índices de tipo _text_ que nos permiten hacer búsquedas en strings, y un motor de búsqueda en el hosting de Mongo Atlas, pero esto lo cubriremos más adelante.
 
-### Arrays
-
 ### Indices únicos
 
 Hay ocasiones en los que tenemos campos de los que estamos seguros que vamos a tener valores únicos, por ejemplo:
@@ -571,6 +569,12 @@ Hay ocasiones en los que tenemos campos de los que estamos seguros que vamos a t
 Es más, si esto no es así preferimos dar un error que tener datos duplicados.
 
 Si lo tienes claro, puedes indicar a _MongoDB_ que cree un índice único para ese campo, supongamos que tenemos una colección de cuentas de usuarios y un campo _email_, vamos a crear un índice único para este campo:
+
+En la base de datos de _mymovies_ hay una colección que se llama _users_.
+
+```bash
+show collections
+```
 
 ```bash
 db.users.createIndex({email: 1}, {unique: true})
@@ -662,7 +666,21 @@ Además de campos simples, podemos crear índices en campos array o subdocumento
 
 Una limitación importante: sólo podemos indicar un campo de tipo array por índice (esto nos afectará cuando creemos campos compuestos).
 
-Vamos a sacar una consulta en la que vamos a mostrar del campo genres (un array con géneros) todos los géneros distintos
+Si te fijas el campo _genres_ es de tipo array:
+
+```bash
+db.movies.find({})
+```
+
+```diff
+  {
+    _id: ObjectId("573a1390f29313caabcd6223"),
+    plot: "Gwen's family is rich, but her parents ignore her and most of the servants push her around, so she is lonely and unhappy. Her father is concerned only with making money, and her mother ...",
++    genres: [ 'Comedy', 'Drama', 'Family' ],
+    runtime: 65,
+```
+
+Vamos a sacar una consulta en la que vamos a mostrar del campo genres (un array con géneros de películas) todos los géneros distintos
 
 ```bash
 db.movies.distinct("genres").sort()
@@ -744,8 +762,6 @@ db.movies.find({genres: "Sci-Fi"}).explain("executionStats");
 ```
 
 En esta colección de movies todos los campos arrays son tipos primitivos, pero se puede crear un indice de un campo de un objeto de un array.
-
-¿Qué pasa si son subdocumentos? Tenemos que probarlo
 
 # Indices compuestos
 
