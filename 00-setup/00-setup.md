@@ -161,7 +161,7 @@ En caso de que no, puedes seguir los primeros pasos del ejemplo anterior.
 
 Vamos a ir a este [repositorio mongodb sample dbs backup](https://github.com/Lemoncode/mongodb-sample-dbs-backup) y clonamos el repositorio con Visual Studio Code.
 
-Aquí podemos ver una carpeta _m-flix, si entramos podemos ver el backup de varias colecciones
+Aquí podemos ver una carpeta _m-flix, si entramos podemos ver el backup de varias colecciones (también está el backup de la base de dato de ejemplo de _airbnb_)
 
 ```
 cd m-flix
