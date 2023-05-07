@@ -1418,17 +1418,19 @@ _MongoDb_ a partir de la versión 4.2 nos ofrece los índices _WildCard_, que us
 
 Veamos cómo funciona esto con un ejemplo:
 
-Trabajaremos sobre el juego de datos de ejemplo _AirBnb_, lo primero que vamos a hacer es borrar todo los índices para asegurarnos de que partimos limpios.
-
-```bash
-use airbnb
-```
+Trabajaremos sobre el juego de datos de ejemplo _AirBnb_, lo primero que vamos a hacer es borrar todo los índices para asegurarnos de que partimos limpios (para más comodidad tiraremos esto desde VS Code).
 
 ```js
+use("airbnb");
 db.listingsAndReviews.dropIndexes();
 ```
 
 Vamos trabajar con la colección _listingsAndReviews_ en concreto con el campo _reviews_score_, vemos que es un objeto que contiene 7 campos.
+
+```js
+use("airbnb");
+db.listingsAndReviews.find({});
+```
 
 ![reviews score campos](./media/17-reviews_score.png)
 
@@ -1441,6 +1443,7 @@ Este objeto tiene pinta de ser buen candidato para aplicar índices wildcard:
 Vamos a tirar un par de consultas y ver cómo se portan sin índices
 
 ```javascript
+use("airbnb");
 db.listingsAndReviews
   .find({
     "review_scores.review_scores_location": { $gte: 9 },
@@ -1449,6 +1452,7 @@ db.listingsAndReviews
 ```
 
 ```javascript
+use("airbnb");
 db.listingsAndReviews
   .find({
     "review_scores.review_scores_cleanliness": { $gte: 9 },
@@ -1464,13 +1468,23 @@ En vez de crear un índice por cada campo vamos a crear un _wildcard_ index:
 - Con el comodín _$\*\*_ le indicamos que cubra todos los campos de ese objeto.
 
 ```js
+use("airbnb");
 db.listingsAndReviews.createIndex({ "review_scores.$**": 1 });
 ```
 
-Esto crea un índice por cada campo del objeto reviews_score, si ahora volvemos
-a lanzar las consultas
+Esto crea un índice por cada campo del objeto reviews_score:
+
+```js
+use("airbnb");
+db.listingsAndReviews.getIndexes();
+```
+
+Ahora podemos lanzar consultas sobre cualquier atributo de _scores_ y aprovechamos los índices.
+
+Sobre _\_score_location_
 
 ```javascript
+use("airbnb");
 db.listingsAndReviews
   .find({
     "review_scores.review_scores_location": { $gte: 9 },
@@ -1478,7 +1492,10 @@ db.listingsAndReviews
   .explain("executionStats");
 ```
 
+Sobre _\_score_cleanliness_
+
 ```javascript
+use("airbnb");
 db.listingsAndReviews
   .find({
     "review_scores.review_scores_cleanliness": { $gte: 9 },
@@ -1490,11 +1507,17 @@ Podemos ver que se están aplicando los índices y sólo recorremos los document
 
 ¿Y qué pasa si el campo es de tipo array? podemos crear también un índice de este tipo, veamos por ejemplo el campo _reviews_
 
+```js
+use("airbnb");
+db.listingsAndReviews.find({});
+```
+
 ![reviews, arrays de objetos  con opiniones](./media/18-reviews.png)
 
 Vamos a tirar un par de consultas y ver cómo se portan sin índices
 
 ```javascript
+use("airbnb");
 db.listingsAndReviews
   .find({
     "reviews.date": { $gte: new Date("2019-03-03") },
@@ -1503,6 +1526,7 @@ db.listingsAndReviews
 ```
 
 ```javascript
+use("airbnb");
 db.listingsAndReviews
   .find({
     "reviews.reviewer_name": "Matt",
@@ -1513,6 +1537,7 @@ db.listingsAndReviews
 Creamos un índice _wildcard_ que cubra todas las entradas de _reviews_:
 
 ```js
+use("airbnb");
 db.listingsAndReviews.createIndex({ "reviews.$**": 1 });
 ```
 
@@ -1520,6 +1545,7 @@ Ahora, si volvemos lanzar estás consultas podemos ver que los índices están
 creados para todos los campos del objeto _reviews_, y las consultas tiene mejor rendimiento.
 
 ```javascript
+use("airbnb");
 db.listingsAndReviews
   .find({
     "reviews.date": { $gte: new Date("2019-03-03") },
@@ -1548,6 +1574,29 @@ Aquí aparecen varias cards en las que nos da consejos basado en el uso sobre qu
 
 ![Pantallas de ATLAS Performance advisor, con las diferentes cards en la que te indican si han detectado algo que hay que mejorar](./media/14-atlas-performance-advisor.jpg)
 
+Para ver como sale de precio:
+
+[MongoDB Pricing](https://www.mongodb.com/pricing)
+
+Aquí va una tabla con los siguientes campos: cluster tier, storage, ram, vCPUs, Base Price, Estimate Month (AWS):
+
+| Cluster Tier | Storage | RAM    | vCPUs | Base Price hr ($) | Estimate Month ($) |
+| ------------ | ------- | ------ | ----- | ----------------- | ------------------ |
+| M0           | 10 GB   | 2 GB   | 2     | 0.08              | 57.6               |
+| M20          | 20 GB   | 4 GB   | 2     | 0.20              | 144                |
+| M30          | 40 GB   | 8 GB   | 2     | 0.54              | 388                |
+| M40          | 80 GB   | 16 GB  | 4     | 1.04              | 748                |
+| M50          | 160 GB  | 32 GB  | 8     | 2                 | 1440               |
+| M60          | 320 GB  | 64 GB  | 16    | 3.95              | 2844               |
+| M80          | 750 GB  | 128 GB | 32    | 7.30              | 5256               |
+| M140         | 1 TB    | 192 GB | 48    | 10.99             | 7912               |
+| M200         | 1.5 TB  | 256 GB | 64    | 14.59             | 10504              |
+| M300         | 2 TB    | 384 GB | 96    | 21.85             | 15732              |
+| M400         | 3 TB    | 488 GB | 64    | 22.40             | 16128              |
+| M700         | 4 TB    | 768 GB | 96    | 33.26             | 23947              |
+
+> Un servidor de con 786GB de RAM, 96 CPUs dependiendo de la gama, puede costar entre 30K € y 200K €.
+
 # Tooling Mongo Compass
 
 En _Mongo Compass_, tenemos dos vistas interesantes:
@@ -1564,6 +1613,8 @@ db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort(
 ![La consulta, en compass tenemos que poner los campos por separados, ojo hay que darle a options para ver el sort y el project](./media/15-explain-plan-query.jpg)
 
 ![Aquí puedes ver de forma gráfica el explain de la query, pintas unas cajas, las une... si estás leyendo esto porque eres invidente creo que puede ser más accesible el JSON](./media/16-explain-plan-query.jpg)
+
+Para la consultas agregadas ya tenemos explain plan, pero es puro JSON.
 
 # Enlaces interesnates
 
