@@ -10,7 +10,7 @@ Primeras reglas de perogrullo cuando me planteo usar un índice:
 
 - ¿Hay muchos datos?
 - ¿Hay consultas que se usan mucho y tardan en ejecutarse? Es decir, una consulta que tira un administrador de vez en cuando no nos debería de preocupar mucho.
-- ¿Cuánto estoy escribiendo datos?
+- ¿Cuantas escrituras tengo versus lecturas?
 
 ## ¿Cómo funcionan?
 
@@ -21,19 +21,19 @@ Es decir, si quiero buscar una palabra mejor que ir página por página, me voy 
 - Si no utilizo el índice tendría que ir página por página buscando, eso es lo que en Mongo lo llamamos hacer un _collection scan_ (COLLSCAN).
 - Si utilizo el índice, voy a la parte de atrás y me salto todas las páginas que no me interesan, esto es mucho más rápido, es lo que en Mongo llamamos un _index scan_ (IXSCAN), pero ojo:
   - Estoy pagando el pato de _añadir páginas al libro_
-  - Si el libro fuera online y estuviera vivo (el autor lo va actualizando), tendría que ir recalculando el índice cada vez que introdujera nuevas páginas (esto es lo que en Mongo se llama _reindexing_), y esto tiene un coste, lo podemos comparar con cuando un usuario introduce e
+  - Si el libro fuera online y estuviera vivo (el autor lo va actualizando), tendría que ir recalculando el índice cada vez que introdujera nuevas páginas (esto es lo que en Mongo se llama _reindexing_), y esto tiene un coste.
 
 Los índices en Mongo son como un árbol binario, donde cada nodo es un documento de la colección.
 
 ¿Se puede usar más de un índice en una consulta?
 
-- MongoDB soporta los XXXX en una consulta, pero normalmente no los usa ya que da peor rendimiento que un índice compuesto.
+- MongoDB soporta intersección de indices en una consulta, pero normalmente no los usa ya que da peor rendimiento que un índice compuesto.
 
-- Lo normal es que se use un sólo índice, a ser que tengamos una consulta con un OR que puede usar más de uno.
+- Lo normal es que se use un sólo índice, a no ser que tengamos una consulta con un OR que puede usar más de uno, o casos de una consulta agregada.
 
-¿Los índices son siempre igual de efectivos? No, si hacemos un matching exacto el índice es más efectivo que si hacemos una consulta por rango.
+¿Los índices son siempre igual de efectivos? No, si hacemos un matching exacto (por ejemplo dame las películas que se estrenaron en 2010) el índice es más efectivo que si hacemos una consulta por rango (por ejemplo, dame las películas que se estrenaron entre 2010 y 2015).
 
-Que campos, no tiene sentido un índice en un booleano, por ejemplo.
+¿Tiene sentido en todos los tipos de campo? NO, por ejemplo en un campo boolean es una tontería, ya que solo puede tener dos valores.
 
 ## Tipos de índices
 
@@ -68,6 +68,12 @@ Y vamos a ver los índices que tenemos en la colección de _movies_:
 
 ```bash
 db.movies.getIndexes()
+```
+
+Si ya tenemos indices creados y queremos partir en limpio (sin cargarnos el indice sobre el campo _\_id_):
+
+```bash
+db.movies.dropIndexes()
 ```
 
 # Hola My Movies
@@ -109,13 +115,13 @@ Si te fijas esto ha dado una respuesta relativamente rápida ¿Por qué?
 - No hay bala de plata, todo depende mucho de número de elementos, la de veces que se ejecute una consulta (no es lo mismo un sysadmin que ejecute una consulta al mes que tarde 5 segundos, que 200 usuarios concurrente ejecutando una consulta con diferentes valores que tarde 2 segundos).
 - Si una colección tiene menos de 1000 elementos y la consulta es simple un índice igual no aporta demasiado.
 - Si la colección es grande (por ejemplo, más de 10,000 documentos) y la consulta implica filtrar, ordenar o agrupar documentos basados en ciertos campos, es probable que se necesite un índice para mejorar el rendimiento de la consulta.
-- Por otro lado, tenemos que prever como va creciendo nuestra base de datos, crear un índice desde cero en una colección enorme tiene su coste.
+- Por otro lado, tenemos que prever como va creciendo nuestra base de datos, crear un índice desde cero en una colección enorme tiene su coste (aunque se puede lanzar en background).
 - Una buena forma de ver si una consulta puede dar problemas es utilizar el comando _explain_ de Mongo (esto lo veremos en breve).
 - En Mongo Atlas (Mongo siempre te va a empujar a que lo uses), tienes un Performance Advisor que te da recomendaciones en base a tu uso, existen opciones para deployments custom pero $$$:
   - [Mongo Ops Manager](https://www.mongodb.com/es/products/ops-manager)
   - [Solar Winds](https://www.solarwinds.com/database-performance-monitor)
   - [Studio T3](https://studio3t.com/)
-- Si te vas a Mongo Atlas, recibes un aviso cuando una consulta tiene que escanear más de mil documentos.
+- Si te vas a Mongo Atlas, puedes recibir un aviso cuando una consulta tiene que escanear más de mil documentos.
 
 # Índices simples
 
@@ -337,7 +343,7 @@ Tenemos que:
 
 ¿Qué pasaría si creamos un índice por la duración?
 
-> Una nota sobre los índices, ojo un índice trae cuenta cuando hay un buen número de clase, por ejemplo, crear un índice sobre un campo booleano tendría sentido, ya que sólo tendríamos dos valores indexados.
+> Una nota sobre los índices, ojo un índice trae cuenta cuando hay un buen número de entradas diferentes (cardinalidad), crear un índice sobre un campo booleano no tendría sentido, ya que sólo tendríamos dos valores indexados.
 
 Vamos a crear un índice por la duración:
 
@@ -398,7 +404,7 @@ Salvo que sepamos muy bien lo que estemos haciendo, no es recomendable usar _hin
 - MongoDB puede utilizar intersección de índices, pero depende de la consulta, y no siempre vas a tener mejor rendimiento.
 - Veremos más adelante que una práctica común es crear índices compuestos (es decir indexar por más de un campo), [según los chicos de MongoDB este tipo de índices son más eficientes que la intersección de índices](https://jira.mongodb.org/browse/SERVER-3071?focusedCommentId=508454&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-508454).
 
-#### Or
+#### Consulta con Or
 
 Vamos a probar ahora a hacer una _or_ con dos condiciones, por ejemplo, que la película sea de 2010 o que la duración sea mayor de 180 minutos.
 
@@ -419,7 +425,7 @@ Aquí si tenemos un resultado interesante, al ser una OR:
 
 Vamos ahora a jugar con la ordenación.
 
-#### Ascendente
+### Ordenación Ascendente
 
 ¿Qué pasa si queremos ordenar por año de forma ascendente?
 
@@ -441,6 +447,18 @@ db.movies.find({}).sort({year: 1}).explain("executionStats");
 
 Aquí volvemos a nuestro amigo _COLLSCAN_ y tenemos que la operación tarda 53 Ms (executionTimeMillisEstimate).
 
+Por otro lado la ordenación se hace en memoria:
+
+```js
+winningPlan: {
+  stage: 'SORT',
+  sortPattern: { year: 1 },
+  memLimit: 104857600,
+  type: 'simple',
+  inputStage: { stage: 'COLLSCAN', direction: 'forward' }
+},
+```
+
 Vamos a volver a crear el índice y ver si mejoramos algo los resultados.
 
 ```bash
@@ -459,11 +477,19 @@ Si nos fijamos aquí tenemos:
 
 ¿Y si combinamos duración y ordenar por año?
 
+Vamos a asegurarnos primero que tenemos los dos indices:
+
+```bash
+db.movies.getIndexes()
+```
+
+Y ejecutamos el comando
+
 ```bash
 db.movies.find({runtime: {$gt: 180}}).sort({year: 1}).explain("executionStats");
 ```
 
-En tu caso, es probable el índice de duración se usa como el índice principal en la consulta porque el criterio de búsqueda por duración tiene una mayor selectividad que el criterio de búsqueda por año de publicación. Como resultado, MongoDB puede optar por usar el índice de duración para filtrar los documentos y luego ordenarlos en memoria.
+En este caso, es probable el índice de duración se usa como el índice principal en la consulta porque el criterio de búsqueda por duración tiene una mayor selectividad que el criterio de búsqueda por año de publicación. Como resultado, MongoDB puede optar por usar el índice de duración para filtrar los documentos y luego ordenarlos en memoria.
 
 ![En este caso aplica el otro indice y decide ordenar en memoria](./media/10-in-memory.jpg)
 
@@ -525,20 +551,12 @@ db.movies.find({title: /^Star Wars/}).explain("executionStats");
 Vale, pues ahora vamos a buscar por una expresión regular todas las pelis que contengan _wars_:
 
 ```bash
-db.movies.find({title: /wars/}).explain("executionStats");
+db.movies.find({title: /Wars/}).explain("executionStats");
 ```
 
-Buf, vaya esto no va
+Bueno, usa el índice pero... a fin de cuentas recorre las 23000 keys :-@
 
 Existen índices de tipo _text_ que nos permiten hacer búsquedas en strings, y un motor de búsqueda en el hosting de Mongo Atlas, pero esto lo cubriremos más adelante.
-
-### Arrays
-
-Antes de nada, vamos a volver a la base de datos de _mymovies_ para esto hacemos un _use_ de la base de datos:
-
-```bash
-use mymovies
-```
 
 ### Indices únicos
 
@@ -551,6 +569,12 @@ Hay ocasiones en los que tenemos campos de los que estamos seguros que vamos a t
 Es más, si esto no es así preferimos dar un error que tener datos duplicados.
 
 Si lo tienes claro, puedes indicar a _MongoDB_ que cree un índice único para ese campo, supongamos que tenemos una colección de cuentas de usuarios y un campo _email_, vamos a crear un índice único para este campo:
+
+En la base de datos de _mymovies_ hay una colección que se llama _users_.
+
+```bash
+show collections
+```
 
 ```bash
 db.users.createIndex({email: 1}, {unique: true})
@@ -642,7 +666,21 @@ Además de campos simples, podemos crear índices en campos array o subdocumento
 
 Una limitación importante: sólo podemos indicar un campo de tipo array por índice (esto nos afectará cuando creemos campos compuestos).
 
-Vamos a sacar una consulta en la que vamos a mostrar del campo genres (un array con géneros) todos los géneros distintos
+Si te fijas el campo _genres_ es de tipo array:
+
+```bash
+db.movies.find({})
+```
+
+```diff
+  {
+    _id: ObjectId("573a1390f29313caabcd6223"),
+    plot: "Gwen's family is rich, but her parents ignore her and most of the servants push her around, so she is lonely and unhappy. Her father is concerned only with making money, and her mother ...",
++    genres: [ 'Comedy', 'Drama', 'Family' ],
+    runtime: 65,
+```
+
+Vamos a sacar una consulta en la que vamos a mostrar del campo genres (un array con géneros de películas) todos los géneros distintos
 
 ```bash
 db.movies.distinct("genres").sort()
@@ -724,8 +762,6 @@ db.movies.find({genres: "Sci-Fi"}).explain("executionStats");
 ```
 
 En esta colección de movies todos los campos arrays son tipos primitivos, pero se puede crear un indice de un campo de un objeto de un array.
-
-¿Qué pasa si son subdocumentos? Tenemos que probarlo
 
 # Indices compuestos
 
@@ -812,7 +848,7 @@ db.movies.find({genres: "Sci-Fi"}).explain("executionStats");
 
 ¡Usa el índice ! Esto es porque el índice empieza por _sci-fi_ entonces es capaz de usarlo (corta y no usa el resto).
 
-Vale, vamos a seguir probando, ¿Si quiero las películas de ciencia ficción y ordenadas por año?
+Vale, vamos a seguir probando, ¿Si quiero las películas de ciencia ficción y ordenadas por año? (Recordemos que el índice es compuesto por genres, year y title)
 
 ```bash
 db.movies.find({genres: "Sci-Fi"}).sort({year: 1}).explain("executionStats");
@@ -852,6 +888,23 @@ db.movies.find({year: {$gte: 2010}}).explain("executionStats");
 
 ¿Qué pasa si queremos usar un índice compuesto con campos arrays?
 
+Fijate en los campos _genres_ y _cast_, son dos arrays:
+
+```bash
+db.movies.find({});
+```
+
+```diff
++    genres: [ 'Comedy', 'Drama', 'Family' ],
+    runtime: 65,
++    cast: [
++      'Mary Pickford',
++      'Madlaine Traverse',
++      'Charles Wellesley',
++      'Gladys Fairbanks'
++    ],
+```
+
 Vamos a intentar crear un índice compuesto por dos campos arrays, _genres_ y _cast_:
 
 ```bash
@@ -864,7 +917,7 @@ MongoServerError: Index build failed: d4ecae56-e7ee-400b-94c4-5cbbeec78ae3: Coll
 
 Nos da un error, ¿Por qué? Porque no se puede crear un índice compuesto por dos campos arrays.
 
-Lo que si podemos hacer es crear un índice compuesto por un campo array y varios no array.
+Lo que si podemos hacer es crear un índice compuesto por un campo array y varios campos que no sean array.
 
 ## ESR
 
@@ -872,7 +925,7 @@ ESR son las siglas de **E**quality **S**ort **R**ange y es un consejo a la hora 
 
 - **Primero Equality:** es cuando comparamos algo con un resultado concreto (por ejemplo, año es igual 2010), es una forma muy rápida de que el índice elija justo esas entradas.
 - **Segundo Sort:** Si estamos ordenando la consulta por un campo en concreto, esta es nuestra segunda opción, ya hemos reducido el número de documentos que tenemos que ordenar con equality, vamos a aprovechar para ordenarlos.
-- **Tercero Consultas de rango:** En este tipo de consultas, pedimos valores que sean mayores que o menores que (por ejemplo, películas entre el 2010 y el 2015), aquí tenemos que acotar el rango lo máximo posible, MongoDB no puede hacer tirar de índices al resultado de tipo rango.
+- **Tercero Consultas de rango:** En este tipo de consultas, pedimos valores que sean mayores que o menores que (por ejemplo, películas entre el 2010 y el 2015), aquí tenemos que acotar el rango lo máximo posible, y aplicar indices aquí no es tan efectivo como en los dos casos anteriores.
 
 [Más informacíon al respecto sobre ESR](https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/)
 
@@ -1004,17 +1057,18 @@ Vamos a probar que esto funciona, insertamos una entrada, y utilizando
 _new Date()_ le indicamos que en _fechaCreacion_ guarde la fecha y hora
 actual.
 
-```js
+````js
 db.sesiones.insertOne({
   fechaCreacion: new Date(),
   datos: "Prueba de contenido A",
 });
+```
 
 Si le echamos un ojo rápido, podemos ver que el documento sigue existiendo:
 
 ```js
 db.sesiones.find({});
-```
+````
 
 Si esperamos justo los 10 segundos y ejecutamos otra vez la consulta puede ser que sigamos viendo el documento, _¿qué pasa aquí?_ MongoDb lanza cada 60 segundos un proceso interno que es el que recorre los índices TTL y se pone a borrar los documentos que hayan caducado, además, esto también puede tardar un poco más dependiendo de la carga que tenga el servidor en ese momento, esto no suele ser problema ya que lo normal es que manejemos tiempos de expiración más elevados (por ejemplo, una sesión suele durar mínimo 30 minutos).
 
@@ -1034,6 +1088,7 @@ Cómo comentamos en un apartado de _String, RegEx y Text Search_, vamos a ver c�
 
 ```bash
 use mymovies
+```
 
 Vamos a hacer un drop de los índices:
 
@@ -1058,22 +1113,21 @@ Ahora sí, nos devuelve los resultados y vemos que ha utilizado para la consulta
 
 ![Se ha realizado una consulta usando text search](./media/13-text-search.png)
 
-Los índices de búsquedas de texto son muy potentes, pero hay que conocer ciertos detalles de su
-funcionamiento, o puede que no nos arrojen los resultados que esperamos.
+Los índices de búsquedas de texto son muy potentes, pero hay que conocer ciertos detalles de su funcionamiento, o puede que no nos arrojen los resultados que esperamos.
 
 En este ejemplo vamos a ver cómo obtener pesos de resultados de búsqueda, cómo excluir palabras, y cómo manejarnos en lenguaje castellano.
 
 ### Pesos de resultados de búsqueda
 
+Como aquí vamos a manejar comandos de varias lineas, mejor nos pasamos a VSCode.
+
 Vamos a crear una base de datos nueva que la llamaremos _clinica_, en ella tendremos una colección que se llamará _consultas_, esta colección tendrá un campo _diagnóstico_ que será de texto libre, y es donde el médico introduce el diagnóstico del paciente (esto es sólo para practicar, lo ideal sería normalizar dicha información en la base de datos).
 
 Creamos la base de datos e insertamos unos datos de prueba:
 
-```bash
-use clinica
-```
-
 ```js
+use("clinica");
+
 db.consultas.insertMany([
   {
     nombre: "Juan Perez",
@@ -1088,37 +1142,95 @@ db.consultas.insertMany([
   {
     nombre: "Javier Garcia",
     especialidad: "cardiología",
-    diagnostico: "Arritmias, acompañado de tensión alta",
+    diagnostico: "Arritmias, acompañado de tensión alta, enfermería",
   },
   {
     nombre: "Manuel Gómez",
     especialidad: "general",
-    diagnostico: "Fiebre alta, tos y mucosidades",
+    diagnostico: "Fiebre alta, tos y mucosidades, enfermería",
   },
 ]);
 ```
 
 Vamos a crear un índice para el campo diagnóstico, como está en castellano, vamos a indicárselo en el _createIndex_, de esta manera, nos aseguramos que va a tratar bien los campos con tilde, caracteres especiales, identificar palabras que debe ignorar en una búsqueda como: a, de, con, ante, y...).
 
-```js
+```
+use("clinica");
+
 db.consultas.createIndex(
   { diagnostico: "text" },
-  { default_language: "spanish" }
+  { defaultLanguage: "spanish"}
 );
 ```
 
 Ahora podemos buscar _tensión_ con o sin tilde y obtenemos resultados:
 
 ```js
+use("clinica");
 db.consultas.find({ $text: { $search: "tensión" } });
 ```
 
 ```js
+use("clinica");
 db.consultas.find({ $text: { $search: "tension" } });
 ```
 
 > Cabe mencionar que en el caso de que puedas tener campos con multiples idiomas, mongoDb te ofrece
 > la opción _language override_
+
+Antes de seguir vamos a enseñarte una cagada en Españo... no va bien con los hiatos :-@, vamos a buscar _enfermería_ con y sin tilde.
+
+```js
+use("clinica");
+db.consultas.find({ $text: { $search: "enfermería" } });
+```
+
+```js
+use("clinica");
+db.consultas.find({ $text: { $search: "enfermeria" } });
+```
+
+Este problema es conocido, digamos que los _fullTextSearch_ no se llevan demasiado bien con el español
+
+https://www.mongodb.com/community/forums/t/how-to-correctly-set-diacritic-insensitive-text-index-for-spanish-lang/221711/6
+
+Vamos a tirar el índice
+
+```js
+use("clinica");
+db.consultas.dropIndex("diagnostico_text");
+```
+
+Y crearlo sin indicar _default_language_
+
+```js
+use("clinica");
+
+db.consultas.createIndex({ diagnostico: "text" });
+```
+
+Y ahora en la query
+
+```js
+use("clinica");
+db.consultas.find({
+  $text: {
+    $search: "enfermeria",
+  },
+});
+```
+
+```js
+use("clinica");
+db.consultas.find({
+  $text: {
+    $search: "enfermeria",
+  },
+});
+```
+
+Si funciona... (es bastante rato, incluso _$diacriticSensitive: false_, es algo que no funciona muy bien
+)
 
 Otro tema muy interesante es evaluar el tipo de resultado que nos da esta búsqueda: lo que hace este _$text $search_ es buscar por palabras, es decir si buscamos _tensión alta_ nos podemos encontrar una sorpresa
 
@@ -1157,9 +1269,7 @@ resultados
 ];
 ```
 
-Resulta que también nos da como primer resultado _fiebre alta_ _¿Comooor?_ bueno resulta que _alta_ existe en esa entrada..., _ok_, aceptamos barco, pero yo quiero que aparezca primero tensión alta _¿Qué está pasando aquí?_ Que no le indicamos que ordene los resultados por relevancia,
-para hacer esto, _MongoDb_ le asigna a cada resultado de la consulta un peso, a más peso más palabras coinciden con lo que se está buscando, si ordenamos por relevancia podemos ver los resultados en el orden
-que esperamos, veamos cómo hacer ésto:
+Resulta que también nos da como primer resultado _fiebre alta_ _¿Comooor?_ bueno resulta que _alta_ existe en esa entrada..., _ok_, aceptamos barco, pero yo quiero que aparezca primero tensión alta _¿Qué está pasando aquí?_ Que no le indicamos que ordene los resultados por relevancia,para hacer esto, _MongoDb_ le asigna a cada resultado de la consulta un peso, a más peso más palabras coinciden con lo que se está buscando, si ordenamos por relevancia podemos ver los resultados en el orden que esperamos, veamos cómo hacer ésto:
 
 Primero sacamos los pesos de relevancia, añadimos a la proyección de resultados un campo que llamaremos _score_ tiramos de los metadatos que nos da el índice de texto, en este caso el campo _textScore_.
 
@@ -1204,10 +1314,12 @@ Veamos los resultados:
 Esto empieza a tener sentido, _tensión alta_ tiene más peso que _fiebre alta_, ¿Y si ordenamos por ese campo?
 
 ```js
-db.consultas.find(
+db.consultas
+  .find(
     { $text: { $search: "tensíon alta" } },
     { nombre: 1, diagnostico: 1, score: { $meta: "textScore" } }
-  ).sort({ score: { $meta: "textScore" } });
+  )
+  .sort({ score: { $meta: "textScore" } });
 ```
 
 Ahora si nos aparece arriba _tension alta_.
@@ -1241,8 +1353,7 @@ Ahora si nos aparece arriba _tension alta_.
 ];
 ```
 
-Aunque... si queremos buscar exactamente tensión alta ¿Por qué no indicarle
-que busque exactamente por ese substring?_, para hacer esto rodeamos el string _tensión alta_ entre comillas dobles.
+Aunque... si queremos buscar exactamente tensión alta ¿Por qué no indicarle que busque exactamente por ese substring?_, para hacer esto rodeamos el string \_tensión alta_ entre comillas dobles.
 
 ```js
 db.consultas.find(
@@ -1254,10 +1365,12 @@ db.consultas.find(
 Otra opción interesante que nos permite este tipo de búsquedas es la de omitir resultados que tengan ciertas palabras, ésto lo hacemos añadiendo como prefijo un menos a la palabra que queramos hacer que descarte el resultado, por ejemplo, queremos buscar pacientes que hayan tenido fiebre, tos, pero no _mucosidades_, le añadimos un menos a _mucosidades_
 
 ```js
-db.consultas.find(
+db.consultas
+  .find(
     { $text: { $search: "fiebre tos -mucosidades" } },
     { nombre: 1, diagnostico: 1, score: { $meta: "textScore" } }
-  ).sort({ score: { $meta: "textScore" } });
+  )
+  .sort({ score: { $meta: "textScore" } });
 ```
 
 Los índices _text_ son una herramienta muy potente, pero hay que saber bien
@@ -1269,9 +1382,9 @@ cuando usarlos ya que:
 
 ### Ejemplo de pesos y lenguaje en Gastrocarta
 
-[Gastrocarta](https://www.gastrocarta.net/) es un portal dedicado a la gastronomía, que ofrece información sobre restaurantes, bares, cafeterías, etc. 
+[Gastrocarta](https://www.gastrocarta.net/) es un portal dedicado a la gastronomía, que ofrece información sobre restaurantes, bares, cafeterías, etc.
 
-En nuestro portal, tenemos un buscador que nos filtra los restaurantes por nombre, teléfono, dirección, etc. 
+En nuestro portal, tenemos un buscador que nos filtra los restaurantes por nombre, teléfono, dirección, etc.
 
 Y nos surgía una problemática con los hiatos, y es qué si buscábamos, por ejemplo, _Cervecería_ no nos aparecía ningún resultado, pero si buscábamos _Cerveceria_ sí que nos aparecían resultados, esto era debido a que en el índice de texto no se tienen en cuenta los acentos, y por lo tanto _Cervecería_ no es lo mismo que _Cerveceria_.
 
@@ -1296,6 +1409,7 @@ db.restaurantes.createIndex(
   }
 );
 ```
+
 # Wildcard Indexes
 
 Hay casos, en los que no sabemos sobre que campos se van a realizar las búsquedas, y tenemos que dar un buen rendimiento desde el día cero, una opción que tenemos es ir creando índices campo por campo, ...mantener esto puede convertirse en algo pesado.
@@ -1304,16 +1418,19 @@ _MongoDb_ a partir de la versión 4.2 nos ofrece los índices _WildCard_, que us
 
 Veamos cómo funciona esto con un ejemplo:
 
-Trabajaremos sobre el juego de datos de ejemplo _AirBnb_, lo primero que vamos a hacer es borrar todo los índices para asegurarnos de que partimos limpios.
-
-```bash
-use airbnb
-```
+Trabajaremos sobre el juego de datos de ejemplo _AirBnb_, lo primero que vamos a hacer es borrar todo los índices para asegurarnos de que partimos limpios (para más comodidad tiraremos esto desde VS Code).
 
 ```js
+use("airbnb");
 db.listingsAndReviews.dropIndexes();
 ```
+
 Vamos trabajar con la colección _listingsAndReviews_ en concreto con el campo _reviews_score_, vemos que es un objeto que contiene 7 campos.
+
+```js
+use("airbnb");
+db.listingsAndReviews.find({});
+```
 
 ![reviews score campos](./media/17-reviews_score.png)
 
@@ -1326,15 +1443,21 @@ Este objeto tiene pinta de ser buen candidato para aplicar índices wildcard:
 Vamos a tirar un par de consultas y ver cómo se portan sin índices
 
 ```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_location": { $gte: 9 },
-}).explain("executionStats");
+use("airbnb");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_location": { $gte: 9 },
+  })
+  .explain("executionStats");
 ```
 
 ```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_cleanliness": { $gte: 9 },
-}).explain("executionStats");
+use("airbnb");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_cleanliness": { $gte: 9 },
+  })
+  .explain("executionStats");
 ```
 
 Tenemos el problema de siempre, tiramos de _colscan_ y recorremos todos los documentos.
@@ -1345,47 +1468,76 @@ En vez de crear un índice por cada campo vamos a crear un _wildcard_ index:
 - Con el comodín _$\*\*_ le indicamos que cubra todos los campos de ese objeto.
 
 ```js
+use("airbnb");
 db.listingsAndReviews.createIndex({ "review_scores.$**": 1 });
 ```
 
-Esto crea un índice por cada campo del objeto reviews_score, si ahora volvemos
-a lanzar las consultas
+Esto crea un índice por cada campo del objeto reviews_score:
 
-```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_location": { $gte: 9 },
-}).explain("executionStats");
+```js
+use("airbnb");
+db.listingsAndReviews.getIndexes();
 ```
 
+Ahora podemos lanzar consultas sobre cualquier atributo de _scores_ y aprovechamos los índices.
+
+Sobre _\_score_location_
+
 ```javascript
-db.listingsAndReviews.find({
-  "review_scores.review_scores_cleanliness": { $gte: 9 },
-}).explain("executionStats");
+use("airbnb");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_location": { $gte: 9 },
+  })
+  .explain("executionStats");
+```
+
+Sobre _\_score_cleanliness_
+
+```javascript
+use("airbnb");
+db.listingsAndReviews
+  .find({
+    "review_scores.review_scores_cleanliness": { $gte: 9 },
+  })
+  .explain("executionStats");
 ```
 
 Podemos ver que se están aplicando los índices y sólo recorremos los documentos que tienen una puntuación mayor que 9.
 
 ¿Y qué pasa si el campo es de tipo array? podemos crear también un índice de este tipo, veamos por ejemplo el campo _reviews_
 
+```js
+use("airbnb");
+db.listingsAndReviews.find({});
+```
+
 ![reviews, arrays de objetos  con opiniones](./media/18-reviews.png)
 
 Vamos a tirar un par de consultas y ver cómo se portan sin índices
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.date": { $gte: new Date("2019-03-03") },
-}).explain("executionStats");
+use("airbnb");
+db.listingsAndReviews
+  .find({
+    "reviews.date": { $gte: new Date("2019-03-03") },
+  })
+  .explain("executionStats");
 ```
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.reviewer_name": "Matt",
-}).explain("executionStats");
+use("airbnb");
+db.listingsAndReviews
+  .find({
+    "reviews.reviewer_name": "Matt",
+  })
+  .explain("executionStats");
 ```
 
 Creamos un índice _wildcard_ que cubra todas las entradas de _reviews_:
 
 ```js
+use("airbnb");
 db.listingsAndReviews.createIndex({ "reviews.$**": 1 });
 ```
 
@@ -1393,18 +1545,24 @@ Ahora, si volvemos lanzar estás consultas podemos ver que los índices están
 creados para todos los campos del objeto _reviews_, y las consultas tiene mejor rendimiento.
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.date": { $gte: new Date("2019-03-03") },
-}).explain("executionStats");
+use("airbnb");
+db.listingsAndReviews
+  .find({
+    "reviews.date": { $gte: new Date("2019-03-03") },
+  })
+  .explain("executionStats");
 ```
 
 ```javascript
-db.listingsAndReviews.find({
-  "reviews.reviewer_name": "Matt",
-}).explain("executionStats");
+db.listingsAndReviews
+  .find({
+    "reviews.reviewer_name": "Matt",
+  })
+  .explain("executionStats");
 ```
 
 Los índices _wildcard_ pueden ser de gran utilidad cuando no sabes a ciencia cierta sobre que va a filtrar el usuario, es un caso especial, no es un sustituto de los índices tradicionales, siempre tienes que estudiar el uso de tus datos, en algunas ocasiones puede ser mucho más útil un índice por múltiples campos que un _wildcard_.
+
 # ATLAS
 
 Si estás trabajando con el hosting oficial de Mongo (ATLAS), y tienes contratado un cluster (a partir de un M0), tienes un advisor para crear índices:
@@ -1415,6 +1573,29 @@ Si estás trabajando con el hosting oficial de Mongo (ATLAS), y tienes contratad
 Aquí aparecen varias cards en las que nos da consejos basado en el uso sobre que indices crear entre otras cosas.
 
 ![Pantallas de ATLAS Performance advisor, con las diferentes cards en la que te indican si han detectado algo que hay que mejorar](./media/14-atlas-performance-advisor.jpg)
+
+Para ver como sale de precio:
+
+[MongoDB Pricing](https://www.mongodb.com/pricing)
+
+Aquí va una tabla con los siguientes campos: cluster tier, storage, ram, vCPUs, Base Price, Estimate Month (AWS):
+
+| Cluster Tier | Storage | RAM    | vCPUs | Base Price hr ($) | Estimate Month ($) |
+| ------------ | ------- | ------ | ----- | ----------------- | ------------------ |
+| M0           | 10 GB   | 2 GB   | 2     | 0.08              | 57.6               |
+| M20          | 20 GB   | 4 GB   | 2     | 0.20              | 144                |
+| M30          | 40 GB   | 8 GB   | 2     | 0.54              | 388                |
+| M40          | 80 GB   | 16 GB  | 4     | 1.04              | 748                |
+| M50          | 160 GB  | 32 GB  | 8     | 2                 | 1440               |
+| M60          | 320 GB  | 64 GB  | 16    | 3.95              | 2844               |
+| M80          | 750 GB  | 128 GB | 32    | 7.30              | 5256               |
+| M140         | 1 TB    | 192 GB | 48    | 10.99             | 7912               |
+| M200         | 1.5 TB  | 256 GB | 64    | 14.59             | 10504              |
+| M300         | 2 TB    | 384 GB | 96    | 21.85             | 15732              |
+| M400         | 3 TB    | 488 GB | 64    | 22.40             | 16128              |
+| M700         | 4 TB    | 768 GB | 96    | 33.26             | 23947              |
+
+> Un servidor de con 786GB de RAM, 96 CPUs dependiendo de la gama, puede costar entre 30K € y 200K €.
 
 # Tooling Mongo Compass
 
@@ -1432,3 +1613,13 @@ db.movies.find({genres: "Sci-Fi", year: {$gte: 2010}}, {_id: 0, title: 1}).sort(
 ![La consulta, en compass tenemos que poner los campos por separados, ojo hay que darle a options para ver el sort y el project](./media/15-explain-plan-query.jpg)
 
 ![Aquí puedes ver de forma gráfica el explain de la query, pintas unas cajas, las une... si estás leyendo esto porque eres invidente creo que puede ser más accesible el JSON](./media/16-explain-plan-query.jpg)
+
+Para la consultas agregadas ya tenemos explain plan, pero es puro JSON.
+
+# Enlaces interesnates
+
+- [Aproximación indices ESR](https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/)
+
+- [Index intersection](https://www.mongodb.com/docs/manual/core/index-intersection)
+
+- [Crear indices en background](https://www.mongodb.com/docs/v3.0/tutorial/build-indexes-in-the-background/)
