@@ -112,7 +112,7 @@ db.clients.createIndex({ "zipCode": 1 });
 
 ```
 
-> Ojo que el índice también lo tenemos que crear de tipo `hashed`, si fuese ranged, aquí tendría el valor `1`.
+> Ojo que el índice también lo tenemos que crear de tipo `ranged`, si fuese `hashed`, aquí tendría el valor `hash`.
 
 Ahora si habilitamos el sharding:
 
@@ -230,7 +230,7 @@ db.movies.createIndex({ "_id": "hashed" });
 
 ```
 
-> Ojo que el índice también lo tenemos que crear de tipo `"hashed"`, al contrario que ranged que tendía el valor `1`.
+> Ojo que el índice también lo tenemos que crear de tipo `"hashed"`, al contrario que ranged que tendría el valor `1`.
 
 Ahora si habilitamos el sharding:
 
