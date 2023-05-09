@@ -25,6 +25,18 @@ sh init-sharded-cluster.sh
 
 ```
 
+Nos conectamos antes al router para borrar la colección de movies:
+
+```bash
+docker exec -it mongos-router mongosh
+
+```
+
+```mongosh
+db.movies.drop();
+
+```
+
 # Ranged sharding
 
 En muchos proyectos reales, lo más normal es tener ya una base de datos con todos los datos de nuestra aplicación, y aplicar el sharding a posteriori.

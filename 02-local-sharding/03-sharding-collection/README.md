@@ -78,7 +78,7 @@ sh.updateZoneKeyRange("my-db.clients", { "zipCode": "29010"}, { "zipCode": "2901
 >
 > Más info sobre [shard a collection](https://www.mongodb.com/docs/manual/tutorial/deploy-shard-cluster/#shard-a-collection) y [manage shard zone](https://www.mongodb.com/docs/manual/tutorial/manage-shard-zone/)
 
-Podemo comprobar la distribución del sharding actual:
+Podemos comprobar la distribución del sharding actual:
 
 ```mongosh
 use my-db
